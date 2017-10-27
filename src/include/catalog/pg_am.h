@@ -83,5 +83,8 @@ DESCR("SP-GiST index access method");
 DATA(insert OID = 3580 (  brin		brinhandler i ));
 DESCR("block range index (BRIN) access method");
 #define BRIN_AM_OID 3580
+DATA(insert OID = 9399 (  smerge	smergehandler i ));
+DESCR("stepped merge index access method");
+#define BRIN_AM_OID 9399
 
 #endif   /* PG_AM_H */
