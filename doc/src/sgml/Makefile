@@ -33,9 +33,9 @@ ifndef DBTOEPUB
 DBTOEPUB = $(missing) dbtoepub
 endif
 
-ifndef JADE
-JADE = $(missing) jade
-endif
+# ifndef JADE
+# JADE = $(missing) jade
+# endif
 SGMLINCLUDE = -D . -D $(srcdir)
 
 ifndef NSGMLS

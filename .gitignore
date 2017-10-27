@@ -27,6 +27,11 @@ win32ver.rc
 *.exe
 lib*dll.def
 lib*.pc
+make_install.out
+make.out
+logfile
+.cproject
+.project
 
 # Local excludes in root directory
 /GNUmakefile
@@ -38,3 +43,5 @@ lib*.pc
 /Debug/
 /Release/
 /tmp_install/
+/install/
+/.settings/
