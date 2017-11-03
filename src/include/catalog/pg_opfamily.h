@@ -183,5 +183,45 @@ DATA(insert OID = 4103 (	3580	range_inclusion_ops		PGNSP PGUID ));
 DATA(insert OID = 4082 (	3580	pg_lsn_minmax_ops		PGNSP PGUID ));
 DATA(insert OID = 4104 (	3580	box_inclusion_ops		PGNSP PGUID ));
 DATA(insert OID = 5000 (	4000	box_ops		PGNSP PGUID ));
+#define SMERGE_FAM_OID 7000
+DATA(insert OID = 7000 (	9399	abstime_ops		PGNSP PGUID ));
+DATA(insert OID = 7001 (	9399	array_ops		PGNSP PGUID ));
+DATA(insert OID = 7002 (	9399	bit_ops			PGNSP PGUID ));
+DATA(insert OID = 7003 (	9399	bool_ops		PGNSP PGUID ));
+DATA(insert OID = 7004 (	9399	bpchar_ops		PGNSP PGUID ));
+DATA(insert OID = 7005 (	9399	bytea_ops		PGNSP PGUID ));
+DATA(insert OID = 7006 (	9399	char_ops		PGNSP PGUID ));
+DATA(insert OID = 7007 (	9399	datetime_ops	PGNSP PGUID ));
+DATA(insert OID = 7008 (	9399	float_ops		PGNSP PGUID ));
+DATA(insert OID = 7009 (	9399	network_ops		PGNSP PGUID ));
+DATA(insert OID = 7010 (	9399	integer_ops		PGNSP PGUID ));
+DATA(insert OID = 7011 (	9399	interval_ops	PGNSP PGUID ));
+DATA(insert OID = 7012 (	9399	macaddr_ops		PGNSP PGUID ));
+DATA(insert OID = 7013 (	9399	name_ops		PGNSP PGUID ));
+DATA(insert OID = 7014 (	9399	numeric_ops		PGNSP PGUID ));
+DATA(insert OID = 7015 (	9399	oid_ops			PGNSP PGUID ));
+DATA(insert OID = 7016 (	9399	oidvector_ops	PGNSP PGUID ));
+DATA(insert OID = 7017 (	9399	record_ops		PGNSP PGUID ));
+DATA(insert OID = 7018 (	9399	record_image_ops	PGNSP PGUID ));
+DATA(insert OID = 7019 (	9399	text_ops		PGNSP PGUID ));
+DATA(insert OID = 7020 (	9399	time_ops		PGNSP PGUID ));
+DATA(insert OID = 7021 (	9399	timetz_ops		PGNSP PGUID ));
+DATA(insert OID = 7022 (	9399	varbit_ops		PGNSP PGUID ));
+DATA(insert OID = 7023 (	9399	text_pattern_ops	PGNSP PGUID ));
+DATA(insert OID = 7024 (	9399	bpchar_pattern_ops	PGNSP PGUID ));
+DATA(insert OID = 7025 (	9399	money_ops		PGNSP PGUID ));
+DATA(insert OID = 7026 (	9399	tid_ops			PGNSP PGUID ));
+DATA(insert OID = 7027 (	9399	reltime_ops		PGNSP PGUID ));
+DATA(insert OID = 7028 (	9399	tinterval_ops	PGNSP PGUID ));
+DATA(insert OID = 7029 (	9399	uuid_ops		PGNSP PGUID ));
+DATA(insert OID = 7030 (	9399	pg_lsn_ops		PGNSP PGUID ));
+DATA(insert OID = 7031 (	9399	enum_ops		PGNSP PGUID ));
+DATA(insert OID = 7032 (	9399	tsvector_ops	PGNSP PGUID ));
+DATA(insert OID = 7033 (	9399	tsquery_ops		PGNSP PGUID ));
+DATA(insert OID = 7034 (	9399	range_ops		PGNSP PGUID ));
+DATA(insert OID = 7035 (	9399	jsonb_ops		PGNSP PGUID ));
+
+
 
 #endif   /* PG_OPFAMILY_H */
+
