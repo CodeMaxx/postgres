@@ -31,8 +31,12 @@
 #include "utils/index_selfuncs.h"
 #include "utils/memutils.h"
 
+#include "access/nbtree.h"
+
+#define SMERGE_METAPAGE 0
+
 /*
- * Btree handler function: return IndexAmRoutine with access method parameters
+ * Stepped Merge handler function: return IndexAmRoutine with access method parameters
  * and callbacks.
  */
 Datum
@@ -77,22 +81,46 @@ smergehandler(PG_FUNCTION_ARGS)
 }
 
 /*
- *	btbuild() -- build a new btree index.
+ *	smergebuild() -- build a new btree index.
  */
 IndexBuildResult *
 smergebuild(Relation heap, Relation index, IndexInfo *indexInfo)
-{}
+{
+	IndexBuildResult * result;
+	IndexBuildResult * btreebuildResult = btbuild(heap, index, indexInfo);
+	result = btreebuildResult;
+	return result;
+}
 
 
 /*
- *	btbuildempty() -- build an empty btree index in the initialization fork
+ *	smergebuildempty() -- build an empty btree index in the initialization fork
  */
 void
 smergebuildempty(Relation index)
-{}
+{
+	Page		metapage;
+
+	/* Construct metapage. */
+	metapage = (Page) palloc(BLCKSZ);
+
+	PageInit(metapage, BLCKSZ, 0 /*for now, need to add a metadata size struct*/);
+	
+	PageSetChecksumInplace(metapage, SMERGE_METAPAGE);
+	smgrwrite(index->rd_smgr, INIT_FORKNUM, SMERGE_METAPAGE,
+			  (char *) metapage, true);
+	log_newpage(&index->rd_smgr->smgr_rnode.node, INIT_FORKNUM,
+				SMERGE_METAPAGE, metapage, false);
+	/*
+	 * An immediate sync is required even if we xlog'd the page, because the
+	 * write did not go through shared_buffers and therefore a concurrent
+	 * checkpoint may have moved the redo pointer past our xlog record.
+	 */
+	smgrimmedsync(index->rd_smgr, INIT_FORKNUM);
+}
 
 /*
- *	btinsert() -- insert an index tuple into a btree.
+ *	smergeinsert() -- insert an index tuple into a btree.
  *
  *		Descend the tree recursively, find the appropriate location for our
  *		new tuple, and put it there.
@@ -101,24 +129,28 @@ bool
 smergeinsert(Relation rel, Datum *values, bool *isnull,
 		 ItemPointer ht_ctid, Relation heapRel,
 		 IndexUniqueCheck checkUnique)
-{}
+{
+
+}
 
 /*
- *	btgettuple() -- Get the next tuple in the scan.
+ *	smergegettuple() -- Get the next tuple in the scan.
  */
 bool
 smergegettuple(IndexScanDesc scan, ScanDirection dir)
-{}
+{
+
+}
 
 /*
- *	btbeginscan() -- start a scan on a btree index
+ *	smergebeginscan() -- start a scan on a btree index
  */
 IndexScanDesc
 smergebeginscan(Relation rel, int nkeys, int norderbys)
 {}
 
 /*
- *	btrescan() -- rescan an index relation
+ *	smergerescan() -- rescan an index relation
  */
 void
 smergerescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
@@ -126,7 +158,7 @@ smergerescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 {}
 
 /*
- *	btendscan() -- close down a scan
+ *	smergeendscan() -- close down a scan
  */
 void
 smergeendscan(IndexScanDesc scan)
