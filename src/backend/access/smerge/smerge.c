@@ -32,6 +32,10 @@
 #include "utils/memutils.h"
 
 #include "access/nbtree.h"
+#include "commands/defrem.h"
+#include "nodes/nodes.h"
+#include "nodes/pg_list.h"
+#include "nodes/parsenodes.h"
 
 #define SMERGE_METAPAGE 0
 
@@ -80,16 +84,109 @@ smergehandler(PG_FUNCTION_ARGS)
 	PG_RETURN_POINTER(amroutine);
 }
 
+
+
+IndexStmt*
+create_btree_index_stmt(Relation heap, IndexInfo *indexInfo, const char *indname) {
+	RangeVar* relation = (RangeVar*) palloc(sizeof(RangeVar));
+	relation->type =T_RangeVar;
+	relation->catalogname = NULL;
+	relation->schemaname = NULL;
+	relation->relname = RelationGetRelationName(heap);
+	relation->inhOpt = INH_DEFAULT;
+	relation->relpersistence = RELPERSISTENCE_PERMANENT;
+	relation->alias = NULL;
+	relation->location = -1;
+
+	IndexStmt* btreeIndStmt = (IndexStmt*) palloc(sizeof(IndexStmt));
+	btreeIndStmt->type = T_IndexStmt;
+	btreeIndStmt->idxname = indname;
+	btreeIndStmt->relation = relation;
+	btreeIndStmt->accessMethod = "btree";
+	btreeIndStmt->tableSpace = NULL;
+
+	List* indexParams = (List*) palloc(sizeof(List));
+	indexParams->type = T_List;
+	indexParams->length = 1;
+
+// {type = T_IndexElem, name = 0x555555e80688 "uid", expr = 0x0, indexcolname = 0x0, collation = 0x0, opclass = 0x0, ordering = SORTBY_DEFAULT, nulls_ordering = SORTBY_NULLS_DEFAULT}
+	IndexElem* indexElem = (IndexElem*) palloc(sizeof(IndexElem));
+	indexElem->type = T_IndexElem; 
+	indexElem->name = "uid";
+	indexElem->expr = NULL; 
+	indexElem->indexcolname = NULL; 
+	indexElem->collation = NULL; 
+	indexElem->opclass = NULL; 
+	indexElem->ordering = SORTBY_DEFAULT; 
+	indexElem->nulls_ordering = SORTBY_NULLS_DEFAULT;
+
+	ListCell* head = (ListCell*) palloc(sizeof(ListCell));
+	indexParams->head = head;
+	head->data.ptr_value = (void *) indexElem;
+	head->next = NULL;
+
+	ListCell* tail = (ListCell*) palloc(sizeof(ListCell));
+	indexParams->tail = tail;
+	tail->data.ptr_value = (void *) indexElem;
+	tail->next = NULL;
+
+	btreeIndStmt->indexParams = indexParams;
+	btreeIndStmt->options = NULL;
+	btreeIndStmt->whereClause = NULL;
+	btreeIndStmt->excludeOpNames = NULL;
+	btreeIndStmt->idxcomment = NULL;
+	btreeIndStmt->indexOid = InvalidOid;
+	btreeIndStmt->oldNode = InvalidOid;
+	btreeIndStmt->unique = false;
+	btreeIndStmt->primary = false;
+	btreeIndStmt->isconstraint = false;
+	btreeIndStmt->deferrable = false;
+	btreeIndStmt->initdeferred = false;
+	btreeIndStmt->transformed = true;
+	btreeIndStmt->concurrent = false;
+	btreeIndStmt->if_not_exists = false;
+	return btreeIndStmt;
+}
+
 /*
  *	smergebuild() -- build a new btree index.
  */
 IndexBuildResult *
 smergebuild(Relation heap, Relation index, IndexInfo *indexInfo)
 {
-	IndexBuildResult * result;
-	IndexBuildResult * btreebuildResult = btbuild(heap, index, indexInfo);
-	result = btreebuildResult;
+
+	IndexStmt* btreeIndStmt = create_btree_index_stmt(heap, indexInfo, NULL);
+	ObjectAddress addr = DefineIndex(RelationGetRelid(heap), 
+				btreeIndStmt,
+				InvalidOid,
+				false,
+				true,
+				true,
+				true);
+
+	if ( addr.objectId == InvalidOid ) {
+		printf("Error creating sub btree index\n");
+	} 
+	else {
+		printf("OID: %d \n", addr.objectId);
+	}
+
+	IndexBuildResult* result = (IndexBuildResult *) palloc(sizeof(IndexBuildResult));
+
+	result->heap_tuples = 0;
+	result->index_tuples = 0;
+
 	return result;
+	// internal_exec_simple_query("create table pg_smerge_metadata (uid varchar(20));");
+	// index_create(heap, 
+	// 			"int_bt_ind", 
+	// 			InvalidOid,
+	// 			InvalidOid,
+	// 			 )
+	// IndexBuildResult * result;
+	// IndexBuildResult * btreebuildResult = btbuild(heap, index, indexInfo);
+	// result = btreebuildResult;
+	// return result;
 }
 
 
