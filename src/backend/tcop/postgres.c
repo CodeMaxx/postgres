@@ -82,6 +82,9 @@
  */
 const char *debug_query_string; /* client-supplied query string */
 
+/* Pointer to exec_simple_query */
+void (*simple_query_fp)(const char *query_string);
+
 /* Note: whereToSendOutput is initialized for the bootstrap/standalone case */
 CommandDest whereToSendOutput = DestDebug;
 
@@ -96,7 +99,7 @@ int			max_stack_depth = 100;
 /* wait N seconds to allow attach from a debugger */
 int			PostAuthDelay = 0;
 
-
+int smerge_flag = 0;
 
 /* ----------------
  *		private variables
@@ -1025,7 +1028,12 @@ exec_simple_query(const char *query_string)
 		 * Create unnamed portal to run the query or queries in. If there
 		 * already is one, silently drop it.
 		 */
-		portal = CreatePortal("", true, true);
+		if(smerge_flag) {
+			portal = CreatePortal("smerge", true, true);
+		}
+		else {
+			portal = CreatePortal("", true, true);
+		}
 		/* Don't display the portal in pg_cursors */
 		portal->visible = false;
 
@@ -3572,6 +3580,7 @@ PostgresMain(int argc, char *argv[],
 			 const char *dbname,
 			 const char *username)
 {
+	simple_query_fp = exec_simple_query;
 	int			firstchar;
 	StringInfoData input_message;
 	sigjmp_buf	local_sigjmp_buf;

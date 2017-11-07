@@ -35,6 +35,10 @@
 
 #define SMERGE_METAPAGE 0
 
+extern void (*simple_query_fp)(const char *query_string);
+
+extern int smerge_flag;
+
 /*
  * Stepped Merge handler function: return IndexAmRoutine with access method parameters
  * and callbacks.
@@ -86,9 +90,12 @@ smergehandler(PG_FUNCTION_ARGS)
 IndexBuildResult *
 smergebuild(Relation heap, Relation index, IndexInfo *indexInfo)
 {
-	IndexBuildResult * result;
-	IndexBuildResult * btreebuildResult = btbuild(heap, index, indexInfo);
-	result = btreebuildResult;
+	smerge_flag = 1;
+	simple_query_fp("select 1");
+	smerge_flag = 0;
+	IndexBuildResult * result = NULL;
+	// IndexBuildResult * btreebuildResult = btbuild(heap, index, indexInfo);
+	// result = btreebuildResult;
 	return result;
 }
 
