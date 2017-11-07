@@ -22,6 +22,15 @@
 #include "lib/stringinfo.h"
 #include "storage/bufmgr.h"
 
+/* Storing various indexes for one smerge */
+typedef struct smerge_index_list {
+    Oid oid;
+    // char* table_name;
+    // char* database_name;
+    struct smerge_index_list* next;
+} smerge_index_list;
+
+
 /*
  * prototypes for functions in smerge.c (external entry points for smerge)
  */
@@ -48,5 +57,7 @@ extern IndexBulkDeleteResult *smergevacuumcleanup(IndexVacuumInfo *info,
 				IndexBulkDeleteResult *stats);
 extern bool smergecanreturn(Relation index, int attno);
 extern void smergecostestimate();
+
+extern smerge_index_list smerge_indexes;
 
 #endif   /* SMERGE_H */

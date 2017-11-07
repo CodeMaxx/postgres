@@ -39,6 +39,7 @@
 #include "access/parallel.h"
 #include "access/printtup.h"
 #include "access/xact.h"
+#include "access/smerge.h"
 #include "catalog/pg_type.h"
 #include "commands/async.h"
 #include "commands/prepare.h"
@@ -99,7 +100,7 @@ int			max_stack_depth = 100;
 /* wait N seconds to allow attach from a debugger */
 int			PostAuthDelay = 0;
 
-int smerge_flag = 0;
+smerge_index_list smerge_indexes;
 
 /* ----------------
  *		private variables
@@ -1028,12 +1029,12 @@ exec_simple_query(const char *query_string)
 		 * Create unnamed portal to run the query or queries in. If there
 		 * already is one, silently drop it.
 		 */
-		if(smerge_flag) {
-			portal = CreatePortal("smerge", true, true);
-		}
-		else {
-			portal = CreatePortal("", true, true);
-		}
+		// if(smerge_flag) {
+		// 	portal = CreatePortal("smerge", true, true);
+		// }
+		// else {
+		portal = CreatePortal("", true, true);
+		// }
 		/* Don't display the portal in pg_cursors */
 		portal->visible = false;
 

@@ -35,10 +35,6 @@
 
 #define SMERGE_METAPAGE 0
 
-extern void (*simple_query_fp)(const char *query_string);
-
-extern int smerge_flag;
-
 /*
  * Stepped Merge handler function: return IndexAmRoutine with access method parameters
  * and callbacks.
@@ -90,12 +86,9 @@ smergehandler(PG_FUNCTION_ARGS)
 IndexBuildResult *
 smergebuild(Relation heap, Relation index, IndexInfo *indexInfo)
 {
-	smerge_flag = 1;
-	simple_query_fp("select 1");
-	smerge_flag = 0;
 	IndexBuildResult * result = NULL;
-	// IndexBuildResult * btreebuildResult = btbuild(heap, index, indexInfo);
-	// result = btreebuildResult;
+	IndexBuildResult * btreebuildResult = btbuild(heap, index, indexInfo);
+	result = btreebuildResult;
 	return result;
 }
 
@@ -112,7 +105,7 @@ smergebuildempty(Relation index)
 	metapage = (Page) palloc(BLCKSZ);
 
 	PageInit(metapage, BLCKSZ, 0 /*for now, need to add a metadata size struct*/);
-	
+
 	PageSetChecksumInplace(metapage, SMERGE_METAPAGE);
 	smgrwrite(index->rd_smgr, INIT_FORKNUM, SMERGE_METAPAGE,
 			  (char *) metapage, true);
