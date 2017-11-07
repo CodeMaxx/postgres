@@ -58,6 +58,6 @@ extern IndexBulkDeleteResult *smergevacuumcleanup(IndexVacuumInfo *info,
 extern bool smergecanreturn(Relation index, int attno);
 extern void smergecostestimate();
 
-extern smerge_index_list smerge_indexes;
+extern smerge_index_list* smerge_index_root;
 
 #endif   /* SMERGE_H */
