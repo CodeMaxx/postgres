@@ -175,6 +175,7 @@ typedef struct SmMetadata {
 	Oid list[64];
 } SmMetadata;
 
+void
 _sm_init_metadata(Page metapage, Oid bt_index) {
 	PageInit(metapage, BLCKSZ, 0);
 
@@ -189,6 +190,7 @@ _sm_init_metadata(Page metapage, Oid bt_index) {
 
 }
 
+void
 _sm_writepage(Relation index, Page page, BlockNumber blkno) {
 
 	/* Ensure rd_smgr is open (could have been closed by relcache flush!) */
@@ -216,9 +218,9 @@ smergebuild(Relation heap, Relation index, IndexInfo *indexInfo)
 	ObjectAddress addr = DefineIndex(RelationGetRelid(heap), 
 				btreeIndStmt,
 				InvalidOid,
+				false,
 				true,
-				true,
-				true,
+				false,
 				true);
 
 	if ( addr.objectId == InvalidOid ) {
@@ -325,16 +327,21 @@ smergeinsert(Relation rel, Datum *values, bool *isnull,
 	}
 
 	RelationCloseSmgr(rel);
+
+	// insert into sub btrees only if there any btrees
+	if (sm_metadata->numList > 0) {
+
+		Relation btreeRel = index_open(sm_metadata->list[sm_metadata->numList - 1], RowExclusiveLock);
+		
+		bool b = btinsert(btreeRel, values, isnull, 
+				ht_ctid, heapRel, checkUnique);
+
+		printf("btinsert returns %d\n", b);
+
+		index_close(btreeRel, RowExclusiveLock);
+	}
+
 	return true;
-
-	// TODO: get current btreeOid
-	// Relation btreeRel = index_open(btreeOid);
-	
-	// btinsert(btreeRel, values, isnull, 
-	// 		ht_ctid, heapRel, checkUnique);
-
-	// index_close(btreeRel);
-
 }
 
 /*
