@@ -75,6 +75,16 @@ typedef struct SmMetadata {
 	Oid list[64];
 } SmMetadata;
 
+typedef struct SmScanOpaqueData	
+{
+	SmMetadata* metadata;
+	
+	Relation bt_rel;
+	IndexScanDesc bt_isd;
+} SmScanOpaqueData;
+
+typedef SmScanOpaqueData* SmScanOpaque;
+
 
 // btree create functions
 extern Node* create_false_node(void);

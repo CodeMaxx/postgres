@@ -160,6 +160,11 @@ smergebuildempty(Relation index)
 	smgrimmedsync(index->rd_smgr, INIT_FORKNUM);
 }
 
+Relation
+_get_curr_btree (SmMetadata* metadata) {
+	return index_open(metadata->list[metadata->numList - 1], RowExclusiveLock);
+}
+
 /*
  *	smergeinsert() -- insert an index tuple into a btree.
  *
@@ -182,8 +187,7 @@ smergeinsert(Relation rel, Datum *values, bool *isnull,
 	// insert into sub btrees only if there any btrees
 	if (sm_metadata->numList > 0) {
 
-		Relation btreeRel = index_open(sm_metadata->list[sm_metadata->numList - 1], RowExclusiveLock);
-		
+		Relation btreeRel = _get_curr_btree(sm_metadata);
 		bool b = btinsert(btreeRel, values, isnull, 
 				ht_ctid, heapRel, checkUnique);
 
@@ -201,7 +205,39 @@ smergeinsert(Relation rel, Datum *values, bool *isnull,
 bool
 smergegettuple(IndexScanDesc scan, ScanDirection dir)
 {
+	IndexScanDesc bt_scan;
+	bool res;
+	SmScanOpaque so = (SmScanOpaque) scan->opaque;
 
+	bt_scan = so->bt_isd;
+
+	scan->xs_recheck = false;
+
+	bt_scan->xs_cbuf = scan->xs_cbuf;
+
+	res = btgettuple(so->bt_isd, dir);
+	printf("btgettuple returns %d\n", res);
+
+	scan->xs_ctup = bt_scan->xs_ctup;
+		
+	/* If we're out of index entries, we're done */
+	// if (!res)
+	// {
+	// 	/* ... but first, release any held pin on a heap page */
+	// 	if (BufferIsValid(bt_scan->xs_cbuf))
+	// 	{
+	// 		ReleaseBuffer(bt_scan->xs_cbuf);
+	// 		bt_scan->xs_cbuf = InvalidBuffer;
+	// 	}
+	// 	return false;
+	// }
+
+	// pgstat_count_index_tuples(bt_scan->indexRelation, 1);
+
+	/* Return the TID of the tuple we found. */
+	// return &bt_scan->xs_ctup.t_self;
+
+	return res;
 }
 
 /*
@@ -211,11 +247,19 @@ IndexScanDesc
 smergebeginscan(Relation rel, int nkeys, int norderbys)
 {
 	IndexScanDesc scan;
-	SmMetadata* sm_metadata;
+	SmScanOpaque so;
 
 	scan = RelationGetIndexScan(rel, nkeys, norderbys);
+	
+	// smerge metadata and stuff needed for successful scan
+	so = palloc(sizeof(SmScanOpaqueData));
+	so->metadata = _sm_getmetadata(rel);
 
-	sm_metadata = _sm_getmetadata(rel);
+	so->bt_rel = _get_curr_btree(so->metadata);
+	so->bt_isd = btbeginscan(so->bt_rel, nkeys, norderbys);
+
+	scan->opaque = so;
+
 
 	return scan;
 }
@@ -227,7 +271,32 @@ void
 smergerescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 		 ScanKey orderbys, int norderbys)
 {
+	
+	IndexScanDesc bt_scan;
+	SmScanOpaque so = (SmScanOpaque) scan->opaque;
 
+	bt_scan = so->bt_isd;
+
+	bt_scan->heapRelation = scan->heapRelation;
+	bt_scan->xs_snapshot = scan->xs_snapshot;
+
+	if (scankey && scan->numberOfKeys > 0)
+		memmove(scan->keyData,
+				scankey,
+				scan->numberOfKeys * sizeof(ScanKeyData));
+
+	/* Release any held pin on a heap page */
+	if (BufferIsValid(bt_scan->xs_cbuf))
+	{
+		ReleaseBuffer(bt_scan->xs_cbuf);
+		bt_scan->xs_cbuf = InvalidBuffer;
+	}
+
+	bt_scan->xs_continue_hot = false;
+
+	bt_scan->kill_prior_tuple = false;		/* for safety */
+
+	btrescan(so->bt_isd, scankey, nscankeys, orderbys, norderbys);
 }
 
 /*
@@ -235,7 +304,20 @@ smergerescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
  */
 void
 smergeendscan(IndexScanDesc scan)
-{}
+{
+	SmScanOpaque so = (SmScanOpaque) scan->opaque;
+
+	if (so->bt_isd != NULL)
+		pfree(so->bt_isd);
+	/* Close btree index */
+	if (so->bt_rel != NULL)
+		index_close (so->bt_rel, RowExclusiveLock);
+	/* Release metadata */
+	if (so->metadata != NULL) 
+		pfree(so->metadata);
+
+	pfree(so);
+}
 
 /*
  * Bulk deletion of all index entries pointing to a set of heap tuples.
