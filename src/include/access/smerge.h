@@ -22,6 +22,24 @@
 #include "lib/stringinfo.h"
 #include "storage/bufmgr.h"
 
+#include "catalog/pg_type.h"
+#include "nodes/nodes.h"
+#include "nodes/pg_list.h"
+#include "nodes/parsenodes.h"
+#include "nodes/primnodes.h"
+#include "nodes/execnodes.h"
+#include "nodes/relation.h"
+#include "catalog/pg_class.h"
+#include "utils/rel.h"
+
+#include "storage/smgr.h"
+
+/*
+ * Define constants here
+ */
+#define SMERGE_METAPAGE 0
+
+
 /*
  * prototypes for functions in smerge.c (external entry points for smerge)
  */
@@ -47,6 +65,26 @@ extern IndexBulkDeleteResult *smergebulkdelete(IndexVacuumInfo *info,
 extern IndexBulkDeleteResult *smergevacuumcleanup(IndexVacuumInfo *info,
 				IndexBulkDeleteResult *stats);
 extern bool smergecanreturn(Relation index, int attno);
-extern void smergecostestimate();
+extern void smergecostestimate(PlannerInfo *root, IndexPath *path, double loop_count, Cost *indexStartupCost, Cost *indexTotalCost, Selectivity *indexSelectivity, double *indexCorrelation);
+
+
+typedef struct SmMetadata {
+	int K;
+	int N;
+	int numList;
+	Oid list[64];
+} SmMetadata;
+
+
+// btree create functions
+extern Node* create_false_node(void);
+extern IndexStmt* create_btree_index_stmt(Relation heap, IndexInfo *indexInfo, char *indname);
+
+/* 
+ * start smerge specific
+ */
+extern void _sm_init_metadata(Page metapage, Oid bt_index);
+extern void _sm_writepage(Relation index, Page page, BlockNumber blkno);
+extern SmMetadata* _sm_getmetadata(Relation rel);
 
 #endif   /* SMERGE_H */

@@ -12,8 +12,6 @@ subdir = src/backend/access/smerge
 top_builddir = ../../../..
 include $(top_builddir)/src/Makefile.global
 
-OBJS = smerge.o
-#smergefunc.o smergeinsert.o smergeovfl.o smergepage.o smergescan.o \
-       smergesearch.o smergesort.o smergeutil.o smergevalidate.o
+OBJS = smerge.o smbtree.o smmeta.o
 
 include $(top_srcdir)/src/backend/common.mk
