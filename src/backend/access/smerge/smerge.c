@@ -175,6 +175,35 @@ typedef struct SmMetadata {
 	Oid list[64];
 } SmMetadata;
 
+_sm_init_metadata(Page metapage, Oid bt_index) {
+	PageInit(metapage, BLCKSZ, 0);
+
+	SmMetadata* sm_metadata = (SmMetadata*) PageGetContents(metapage);
+	sm_metadata->K = 132;
+	sm_metadata->N = 35;
+	sm_metadata->numList = 1;
+	sm_metadata->list[0] = bt_index;
+
+	((PageHeader) metapage)->pd_lower =
+		((char *) sm_metadata + sizeof(SmMetadata)) - (char *) metapage;
+
+}
+
+_sm_writepage(Relation index, Page page, BlockNumber blkno) {
+
+	/* Ensure rd_smgr is open (could have been closed by relcache flush!) */
+	RelationOpenSmgr(index);
+
+	log_newpage(&index->rd_node, MAIN_FORKNUM,
+				blkno, page, true);
+
+	PageSetChecksumInplace(page, blkno);
+	smgrwrite(index->rd_smgr, MAIN_FORKNUM, blkno,
+			  (char *) page, true);
+
+	pfree(page);
+}
+
 /*
  *	smergebuild() -- build a new btree index.
  */
@@ -194,44 +223,30 @@ smergebuild(Relation heap, Relation index, IndexInfo *indexInfo)
 
 	if ( addr.objectId == InvalidOid ) {
 		printf("Error creating sub btree index\n");
-	} 
+	}
 	else {
 		printf("OID: %d \n", addr.objectId);
 	}
 
-	Oid indx = addr.objectId;
+	Oid bt_indx = addr.objectId;
 
 	
 	/* Construct metapage. */
 	Page		metapage;
 	metapage = (Page) palloc(BLCKSZ);
+	
+	// smgrcreate(index->rd_smgr, INIT_FORKNUM, false);
 
-	RelationOpenSmgr(index);
-	smgrcreate(index->rd_smgr, INIT_FORKNUM, false);
-
-	PageInit(metapage, BLCKSZ, 0);
-
-	SmMetadata* sm_metadata = (SmMetadata*) PageGetContents(metapage);
-	sm_metadata->K = 132;
-	sm_metadata->N = 35;
-	sm_metadata->numList = 1;
-	sm_metadata->list[0] = indx;
-
-	((PageHeader) metapage)->pd_lower =
-		((char *) sm_metadata + sizeof(SmMetadata)) - (char *) metapage;
-
-	PageSetChecksumInplace(metapage, SMERGE_METAPAGE);
-	smgrwrite(index->rd_smgr, INIT_FORKNUM, SMERGE_METAPAGE,
-			  (char *) metapage, true);
-	log_newpage(&index->rd_smgr->smgr_rnode.node, INIT_FORKNUM,
-				SMERGE_METAPAGE, metapage, false);
+	_sm_init_metadata(metapage, bt_indx);
+	_sm_writepage(index, metapage, SMERGE_METAPAGE);
+	
 	/*
 	 * An immediate sync is required even if we xlog'd the page, because the
 	 * write did not go through shared_buffers and therefore a concurrent
 	 * checkpoint may have moved the redo pointer past our xlog record.
 	 */
-	smgrimmedsync(index->rd_smgr, INIT_FORKNUM);
-	RelationCloseSmgr(index);
+	// smgrimmedsync(index->rd_smgr, MAIN_FORKNUM);
+	// RelationCloseSmgr(index);
 
 
 	IndexBuildResult* result = (IndexBuildResult *) palloc(sizeof(IndexBuildResult));
@@ -296,7 +311,7 @@ smergeinsert(Relation rel, Datum *values, bool *isnull,
 	metapage = (Page) palloc(BLCKSZ);
 
 	RelationOpenSmgr(rel);
-	smgrread(rel->rd_smgr, INIT_FORKNUM, SMERGE_METAPAGE,
+	smgrread(rel->rd_smgr, MAIN_FORKNUM, SMERGE_METAPAGE,
 			  (char *) metapage);
 
 	// SmMetadata* sm_metadata = (SmMetadata*) palloc(sizeof(SmMetadata));
