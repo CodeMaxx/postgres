@@ -22,6 +22,7 @@
 #include "access/xlogreader.h"
 #include "access/attnum.h"
 
+#include "catalog/objectaddress.h"
 #include "catalog/pg_index.h"
 #include "lib/stringinfo.h"
 #include "storage/bufmgr.h"
@@ -37,7 +38,7 @@
 #include "utils/rel.h"
 
 #include "storage/smgr.h"
-
+#include "commands/defrem.h"
 /*
  * Define constants here
  */
@@ -106,6 +107,7 @@ typedef SmScanOpaqueData* SmScanOpaque;
 // btree create functions
 extern Node* create_false_node(void);
 extern IndexStmt* create_btree_index_stmt(Relation heap, int attsnum, AttrNumber *attrs, char *indname);
+extern ObjectAddress _sm_create_curr_btree (Relation heap, SmMetadata* metadata);
 
 /* 
  * start smerge specific

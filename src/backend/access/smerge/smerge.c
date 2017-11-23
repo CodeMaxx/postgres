@@ -33,7 +33,6 @@
 #include "utils/memutils.h"
 
 #include "access/nbtree.h"
-#include "commands/defrem.h"
 
 
 #include <string.h>
@@ -197,7 +196,15 @@ smergeinsert(Relation rel, Datum *values, bool *isnull,
 
 	if (sm_metadata->currTuples >= MAX_INMEM_TUPLES) {
 		printf("Exceeded! (:3)\n");
-		
+		sm_metadata->tree[0][sm_metadata->levels[0]++] = sm_metadata->curr;
+		ObjectAddress addr = _sm_create_curr_btree(heapRel, sm_metadata);
+		sm_metadata->currTuples = 0;
+		if (addr.objectId != InvalidOid)
+			sm_metadata->curr = addr.objectId;
+		else 
+			printf("Error in creating a sub-btree\n");
+
+		// call merge func here
 	}
 
 	_sm_write_metadata(rel, sm_metadata);
@@ -370,5 +377,8 @@ smergecostestimate(PlannerInfo *root,
                 Selectivity *indexSelectivity,
                 double *indexCorrelation)
 {
-
+	*indexStartupCost = 0.0;
+	*indexTotalCost = 0.01;
+	*indexSelectivity = 0.0;
+	*indexCorrelation = 0.9;
 }

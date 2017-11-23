@@ -27,7 +27,6 @@ create_btree_index_stmt(Relation heap, int attsnum, AttrNumber *attrs, char *ind
 	List* indexParams;
 	IndexElem* indexElem;
 
-	ListCell* head;
 	ListCell* prevCell;
 	ListCell* currCell;
 
@@ -97,3 +96,27 @@ create_btree_index_stmt(Relation heap, int attsnum, AttrNumber *attrs, char *ind
 	btreeIndStmt->if_not_exists = false;
 	return btreeIndStmt;
 }
+
+ObjectAddress 
+_sm_create_curr_btree (Relation heap, SmMetadata* metadata) {
+	IndexStmt* btreeIndStmt;
+	ObjectAddress addr;
+
+	btreeIndStmt = create_btree_index_stmt(heap, metadata->attnum, metadata->attrs, NULL);
+	addr = DefineIndex(RelationGetRelid(heap), 
+						btreeIndStmt,
+						InvalidOid,
+						false,
+						true,
+						false,
+						true);
+
+	if ( addr.objectId == InvalidOid ) {
+		printf("Error creating sub btree index\n");
+	}
+	else {
+		printf("OID: %d \n", addr.objectId);
+	}
+
+	return addr;
+} 
