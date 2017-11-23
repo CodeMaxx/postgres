@@ -42,8 +42,11 @@
  * Define constants here
  */
 #define SMERGE_METAPAGE 0
+
 #define MAX_K 16
 #define MAX_N 8
+
+#define MAX_INMEM_TUPLES 4
 
 /*
  * prototypes for functions in smerge.c (external entry points for smerge)
@@ -83,6 +86,8 @@ typedef struct SmMetadata {
 	int levels[MAX_N];
 	Oid tree[MAX_N][MAX_K];
 	
+	int currTuples;
+
 	Oid curr;
 	Oid root;
 } SmMetadata;
@@ -108,6 +113,7 @@ extern IndexStmt* create_btree_index_stmt(Relation heap, int attsnum, AttrNumber
 extern void _sm_init_metadata(Page metapage, Oid bt_index, IndexInfo *indexInfo);
 extern void _sm_writepage(Relation index, Page page, BlockNumber blkno);
 extern SmMetadata* _sm_getmetadata(Relation rel);
+extern void _sm_write_metadata(Relation index, SmMetadata* sm_metadata);
 
 // smerge functions
 extern Relation _get_curr_btree (SmMetadata* metadata);
