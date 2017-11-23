@@ -28,7 +28,7 @@ create_btree_index_stmt(Relation heap, int attsnum, AttrNumber *attrs, char *ind
 	IndexElem* indexElem;
 
 	ListCell* head;
-	ListCell* tail;
+	ListCell* prevCell;
 	ListCell* currCell;
 
 	relation = (RangeVar*) palloc(sizeof(RangeVar));
@@ -52,12 +52,13 @@ create_btree_index_stmt(Relation heap, int attsnum, AttrNumber *attrs, char *ind
 	indexParams->type = T_List;
 	indexParams->length = attsnum;
 
-	// currCell = NULL;
-	// for (int i = 0; i != attsnum; i++) {
+	prevCell = NULL;
+	currCell = NULL;
+	for (int i = 0; i < attsnum; i++) {
 // {type = T_IndexElem, name = 0x555555e80688 "uid", expr = 0x0, indexcolname = 0x0, collation = 0x0, opclass = 0x0, ordering = SORTBY_DEFAULT, nulls_ordering = SORTBY_NULLS_DEFAULT}
 		indexElem = (IndexElem*) palloc(sizeof(IndexElem));
 		indexElem->type = T_IndexElem; 
-		indexElem->name = heap->rd_att->attrs[attrs[0] - 1]->attname.data;
+		indexElem->name = heap->rd_att->attrs[attrs[i] - 1]->attname.data;
 		indexElem->expr = NULL; 
 		indexElem->indexcolname = NULL; 
 		indexElem->collation = NULL; 
@@ -65,17 +66,19 @@ create_btree_index_stmt(Relation heap, int attsnum, AttrNumber *attrs, char *ind
 		indexElem->ordering = SORTBY_DEFAULT; 
 		indexElem->nulls_ordering = SORTBY_NULLS_DEFAULT;
 
-		// if (currCell != NULL)
-
+		prevCell = currCell;
 		currCell = (ListCell*) palloc(sizeof(ListCell));
 		currCell->data.ptr_value = (void *) indexElem;
-		currCell->next = NULL;
 
-		// if (i == 0)
-		indexParams->head = currCell;
-		indexParams->tail = currCell;
-		// if (i == attsnum - 1)
-	// }
+		if (prevCell != NULL)
+			prevCell->next = currCell;
+
+		if (i == 0)
+			indexParams->head = currCell;
+	}
+
+	indexParams->tail = currCell;
+	currCell->next = NULL;
 
 	btreeIndStmt->indexParams = indexParams;
 	btreeIndStmt->options = NULL;

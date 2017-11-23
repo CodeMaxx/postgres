@@ -162,7 +162,7 @@ smergebuildempty(Relation index)
 
 Relation
 _get_curr_btree (SmMetadata* metadata) {
-	return index_open(metadata->list[metadata->numList - 1], RowExclusiveLock);
+	return index_open(metadata->curr, RowExclusiveLock);
 }
 
 /*
@@ -176,18 +176,17 @@ smergeinsert(Relation rel, Datum *values, bool *isnull,
 		 ItemPointer ht_ctid, Relation heapRel,
 		 IndexUniqueCheck checkUnique)
 {
+	Relation btreeRel;
 	SmMetadata* sm_metadata = _sm_getmetadata(rel);
 	printf("K: %d, N: %d\n", sm_metadata->K, sm_metadata->N);
-	for (int i = 0; i != sm_metadata->numList; i++) {
-		printf("Btree OIDs %d: %d \n", i, sm_metadata->list[i]);
-	}
+	printf("Curr BTree OID: %d\n", sm_metadata->curr);
 
 	RelationCloseSmgr(rel);
 
 	// insert into sub btrees only if there any btrees
-	if (sm_metadata->numList > 0) {
+	btreeRel = _get_curr_btree(sm_metadata);
 
-		Relation btreeRel = _get_curr_btree(sm_metadata);
+	if (true /* Check whether curr btree is full */) {
 		bool b = btinsert(btreeRel, values, isnull, 
 				ht_ctid, heapRel, checkUnique);
 
@@ -219,6 +218,9 @@ smergegettuple(IndexScanDesc scan, ScanDirection dir)
 	printf("btgettuple returns %d\n", res);
 
 	scan->xs_ctup = bt_scan->xs_ctup;
+	
+	scan->xs_itup = bt_scan->xs_itup;
+	scan->xs_itupdesc = bt_scan->xs_itupdesc;
 		
 	/* If we're out of index entries, we're done */
 	// if (!res)
@@ -258,8 +260,9 @@ smergebeginscan(Relation rel, int nkeys, int norderbys)
 	so->bt_rel = _get_curr_btree(so->metadata);
 	so->bt_isd = btbeginscan(so->bt_rel, nkeys, norderbys);
 
-	scan->opaque = so;
+	scan->xs_itupdesc = RelationGetDescr(rel);
 
+	scan->opaque = so;
 
 	return scan;
 }

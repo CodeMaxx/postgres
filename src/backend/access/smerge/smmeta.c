@@ -9,15 +9,22 @@ _sm_init_metadata(Page metapage, Oid bt_index, IndexInfo *indexInfo) {
 	PageInit(metapage, BLCKSZ, 0);
 
 	sm_metadata = (SmMetadata*) PageGetContents(metapage);
-	sm_metadata->K = 132;
-	sm_metadata->N = 35;
-	
+	sm_metadata->K = 3;
+	sm_metadata->N = 3;
+
 	sm_metadata->attnum = indexInfo->ii_NumIndexAttrs;
 	for (int i = 0; i < sm_metadata->attnum; i++)
 		sm_metadata->attrs[i] = indexInfo->ii_KeyAttrNumbers[i];
 
-	sm_metadata->numList = 1;
-	sm_metadata->list[0] = bt_index;
+	for (int i = 0; i < MAX_N; i++)
+		sm_metadata->levels[i] = 0;
+
+	for (int i = 0; i < MAX_N; i++) 
+		for (int j = 0; j < MAX_K; j++)
+			sm_metadata->tree[i][j] = InvalidOid;
+
+	sm_metadata->curr = bt_index;
+	sm_metadata->root = InvalidOid;
 	memcpy(sm_metadata, PageGetContents(metapage), sizeof(SmMetadata));
 
 	((PageHeader) metapage)->pd_lower =

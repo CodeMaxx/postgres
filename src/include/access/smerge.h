@@ -80,8 +80,11 @@ typedef struct SmMetadata {
 	int attnum;
 	AttrNumber attrs[INDEX_MAX_KEYS];
 
-	int numList;
-	Oid list[64];
+	int levels[MAX_N];
+	Oid tree[MAX_N][MAX_K];
+	
+	Oid curr;
+	Oid root;
 } SmMetadata;
 
 typedef struct SmScanOpaqueData	
@@ -106,4 +109,6 @@ extern void _sm_init_metadata(Page metapage, Oid bt_index, IndexInfo *indexInfo)
 extern void _sm_writepage(Relation index, Page page, BlockNumber blkno);
 extern SmMetadata* _sm_getmetadata(Relation rel);
 
+// smerge functions
+extern Relation _get_curr_btree (SmMetadata* metadata);
 #endif   /* SMERGE_H */
