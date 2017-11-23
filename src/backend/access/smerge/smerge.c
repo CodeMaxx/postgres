@@ -176,6 +176,7 @@ smergeinsert(Relation rel, Datum *values, bool *isnull,
 		 IndexUniqueCheck checkUnique)
 {
 	bool b;
+	ObjectAddress addr;
 	Relation btreeRel;
 	SmMetadata* sm_metadata = _sm_getmetadata(rel);
 	printf("K: %d, N: %d\n", sm_metadata->K, sm_metadata->N);
@@ -197,7 +198,7 @@ smergeinsert(Relation rel, Datum *values, bool *isnull,
 	if (sm_metadata->currTuples >= MAX_INMEM_TUPLES) {
 		printf("Exceeded! (:3)\n");
 		sm_metadata->tree[0][sm_metadata->levels[0]++] = sm_metadata->curr;
-		ObjectAddress addr = _sm_create_curr_btree(heapRel, sm_metadata);
+		addr = _sm_create_curr_btree(heapRel, sm_metadata);
 		sm_metadata->currTuples = 0;
 		if (addr.objectId != InvalidOid)
 			sm_metadata->curr = addr.objectId;
@@ -346,7 +347,9 @@ smergeendscan(IndexScanDesc scan)
 IndexBulkDeleteResult *
 smergebulkdelete(IndexVacuumInfo *info, IndexBulkDeleteResult *stats,
 			 IndexBulkDeleteCallback callback, void *callback_state)
-{}
+{
+	return NULL;
+}
 
 /*
  * Post-VACUUM cleanup.
@@ -355,7 +358,9 @@ smergebulkdelete(IndexVacuumInfo *info, IndexBulkDeleteResult *stats,
  */
 IndexBulkDeleteResult *
 smergevacuumcleanup(IndexVacuumInfo *info, IndexBulkDeleteResult *stats)
-{}
+{
+	return NULL;
+}
 
 /*
  *	btcanreturn() -- Check whether btree indexes support index-only scans.
