@@ -80,23 +80,23 @@ extern void smergecostestimate(PlannerInfo *root, IndexPath *path, double loop_c
 typedef struct SmMetadata {
 	int K;
 	int N;
-	
+
 	int attnum;
 	AttrNumber attrs[INDEX_MAX_KEYS];
 
 	int levels[MAX_N];
 	Oid tree[MAX_N][MAX_K];
-	
+
 	int currTuples;
 
 	Oid curr;
 	Oid root;
 } SmMetadata;
 
-typedef struct SmScanOpaqueData	
+typedef struct SmScanOpaqueData
 {
 	SmMetadata* metadata;
-	
+
 	Relation bt_rel;
 	IndexScanDesc bt_isd;
 } SmScanOpaqueData;
@@ -109,7 +109,7 @@ extern Node* create_false_node(void);
 extern IndexStmt* create_btree_index_stmt(Relation heap, int attsnum, AttrNumber *attrs, char *indname);
 extern ObjectAddress _sm_create_curr_btree (Relation heap, SmMetadata* metadata);
 
-/* 
+/*
  * start smerge specific
  */
 extern void _sm_init_metadata(Page metapage, Oid bt_index, IndexInfo *indexInfo);
@@ -119,4 +119,7 @@ extern void _sm_write_metadata(Relation index, SmMetadata* sm_metadata);
 
 // smerge functions
 extern Relation _get_curr_btree (SmMetadata* metadata);
+
+// smsort functions
+extern void sm_flush(Relation rel, Relation heapRel, SmMetadata* metadata);
 #endif   /* SMERGE_H */
