@@ -14,10 +14,14 @@
 #ifndef SMERGE_H
 #define SMERGE_H
 
+#include "pg_config_manual.h"
+
 #include "access/amapi.h"
 #include "access/itup.h"
 #include "access/sdir.h"
 #include "access/xlogreader.h"
+#include "access/attnum.h"
+
 #include "catalog/pg_index.h"
 #include "lib/stringinfo.h"
 #include "storage/bufmgr.h"
@@ -38,7 +42,8 @@
  * Define constants here
  */
 #define SMERGE_METAPAGE 0
-
+#define MAX_K 16
+#define MAX_N 8
 
 /*
  * prototypes for functions in smerge.c (external entry points for smerge)
@@ -71,6 +76,10 @@ extern void smergecostestimate(PlannerInfo *root, IndexPath *path, double loop_c
 typedef struct SmMetadata {
 	int K;
 	int N;
+	
+	int attnum;
+	AttrNumber attrs[INDEX_MAX_KEYS];
+
 	int numList;
 	Oid list[64];
 } SmMetadata;
@@ -88,12 +97,12 @@ typedef SmScanOpaqueData* SmScanOpaque;
 
 // btree create functions
 extern Node* create_false_node(void);
-extern IndexStmt* create_btree_index_stmt(Relation heap, IndexInfo *indexInfo, char *indname);
+extern IndexStmt* create_btree_index_stmt(Relation heap, int attsnum, AttrNumber *attrs, char *indname);
 
 /* 
  * start smerge specific
  */
-extern void _sm_init_metadata(Page metapage, Oid bt_index);
+extern void _sm_init_metadata(Page metapage, Oid bt_index, IndexInfo *indexInfo);
 extern void _sm_writepage(Relation index, Page page, BlockNumber blkno);
 extern SmMetadata* _sm_getmetadata(Relation rel);
 

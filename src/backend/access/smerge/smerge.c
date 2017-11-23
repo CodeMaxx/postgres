@@ -54,7 +54,7 @@ smergehandler(PG_FUNCTION_ARGS)
 	amroutine->amcanorderbyop = false;
 	amroutine->amcanbackward = false;
 	amroutine->amcanunique = true;
-	amroutine->amcanmulticol = false;
+	amroutine->amcanmulticol = true;
 	amroutine->amoptionalkey = true;
 	amroutine->amsearcharray = false;
 	amroutine->amsearchnulls = false;
@@ -99,7 +99,7 @@ smergebuild(Relation heap, Relation index, IndexInfo *indexInfo)
 	Oid bt_index;
 	Page		metapage;
 
-	btreeIndStmt = create_btree_index_stmt(heap, indexInfo, NULL);
+	btreeIndStmt = create_btree_index_stmt(heap, indexInfo->ii_NumIndexAttrs, indexInfo->ii_KeyAttrNumbers, NULL);
 	addr = DefineIndex(RelationGetRelid(heap), 
 						btreeIndStmt,
 						InvalidOid,
@@ -121,7 +121,7 @@ smergebuild(Relation heap, Relation index, IndexInfo *indexInfo)
 	/* Construct metapage. */
 	metapage = (Page) palloc(BLCKSZ);
 	
-	_sm_init_metadata(metapage, bt_index);
+	_sm_init_metadata(metapage, bt_index, indexInfo);
 	_sm_writepage(index, metapage, SMERGE_METAPAGE);
 	
 

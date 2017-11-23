@@ -3,7 +3,7 @@
 
 
 void
-_sm_init_metadata(Page metapage, Oid bt_index) {
+_sm_init_metadata(Page metapage, Oid bt_index, IndexInfo *indexInfo) {
 	SmMetadata* sm_metadata;
 
 	PageInit(metapage, BLCKSZ, 0);
@@ -11,8 +11,14 @@ _sm_init_metadata(Page metapage, Oid bt_index) {
 	sm_metadata = (SmMetadata*) PageGetContents(metapage);
 	sm_metadata->K = 132;
 	sm_metadata->N = 35;
+	
+	sm_metadata->attnum = indexInfo->ii_NumIndexAttrs;
+	for (int i = 0; i < sm_metadata->attnum; i++)
+		sm_metadata->attrs[i] = indexInfo->ii_KeyAttrNumbers[i];
+
 	sm_metadata->numList = 1;
 	sm_metadata->list[0] = bt_index;
+	memcpy(sm_metadata, PageGetContents(metapage), sizeof(SmMetadata));
 
 	((PageHeader) metapage)->pd_lower =
 		((char *) sm_metadata + sizeof(SmMetadata)) - (char *) metapage;

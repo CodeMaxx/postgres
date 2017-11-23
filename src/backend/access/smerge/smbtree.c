@@ -21,7 +21,7 @@ create_false_node(void) {
 
 
 IndexStmt*
-create_btree_index_stmt(Relation heap, IndexInfo *indexInfo, char *indname) {
+create_btree_index_stmt(Relation heap, int attsnum, AttrNumber *attrs, char *indname) {
 	IndexStmt* btreeIndStmt; 
 	RangeVar* relation; 
 	List* indexParams;
@@ -29,6 +29,7 @@ create_btree_index_stmt(Relation heap, IndexInfo *indexInfo, char *indname) {
 
 	ListCell* head;
 	ListCell* tail;
+	ListCell* currCell;
 
 	relation = (RangeVar*) palloc(sizeof(RangeVar));
 	relation->type =T_RangeVar;
@@ -49,28 +50,32 @@ create_btree_index_stmt(Relation heap, IndexInfo *indexInfo, char *indname) {
 
 	indexParams = (List*) palloc(sizeof(List));
 	indexParams->type = T_List;
-	indexParams->length = 1;
+	indexParams->length = attsnum;
 
+	// currCell = NULL;
+	// for (int i = 0; i != attsnum; i++) {
 // {type = T_IndexElem, name = 0x555555e80688 "uid", expr = 0x0, indexcolname = 0x0, collation = 0x0, opclass = 0x0, ordering = SORTBY_DEFAULT, nulls_ordering = SORTBY_NULLS_DEFAULT}
-	indexElem = (IndexElem*) palloc(sizeof(IndexElem));
-	indexElem->type = T_IndexElem; 
-	indexElem->name = heap->rd_att->attrs[indexInfo->ii_KeyAttrNumbers[0] - 1]->attname.data;
-	indexElem->expr = NULL; 
-	indexElem->indexcolname = NULL; 
-	indexElem->collation = NULL; 
-	indexElem->opclass = NULL; 
-	indexElem->ordering = SORTBY_DEFAULT; 
-	indexElem->nulls_ordering = SORTBY_NULLS_DEFAULT;
+		indexElem = (IndexElem*) palloc(sizeof(IndexElem));
+		indexElem->type = T_IndexElem; 
+		indexElem->name = heap->rd_att->attrs[attrs[0] - 1]->attname.data;
+		indexElem->expr = NULL; 
+		indexElem->indexcolname = NULL; 
+		indexElem->collation = NULL; 
+		indexElem->opclass = NULL; 
+		indexElem->ordering = SORTBY_DEFAULT; 
+		indexElem->nulls_ordering = SORTBY_NULLS_DEFAULT;
 
-	head = (ListCell*) palloc(sizeof(ListCell));
-	indexParams->head = head;
-	head->data.ptr_value = (void *) indexElem;
-	head->next = NULL;
+		// if (currCell != NULL)
 
-	tail = (ListCell*) palloc(sizeof(ListCell));
-	indexParams->tail = tail;
-	tail->data.ptr_value = (void *) indexElem;
-	tail->next = NULL;
+		currCell = (ListCell*) palloc(sizeof(ListCell));
+		currCell->data.ptr_value = (void *) indexElem;
+		currCell->next = NULL;
+
+		// if (i == 0)
+		indexParams->head = currCell;
+		indexParams->tail = currCell;
+		// if (i == attsnum - 1)
+	// }
 
 	btreeIndStmt->indexParams = indexParams;
 	btreeIndStmt->options = NULL;
