@@ -176,6 +176,7 @@ smergeinsert(Relation rel, Datum *values, bool *isnull,
 		 ItemPointer ht_ctid, Relation heapRel,
 		 IndexUniqueCheck checkUnique)
 {
+	bool b;
 	Relation btreeRel;
 	SmMetadata* sm_metadata = _sm_getmetadata(rel);
 	printf("K: %d, N: %d\n", sm_metadata->K, sm_metadata->N);
@@ -186,14 +187,20 @@ smergeinsert(Relation rel, Datum *values, bool *isnull,
 	// insert into sub btrees only if there any btrees
 	btreeRel = _get_curr_btree(sm_metadata);
 
-	if (true /* Check whether curr btree is full */) {
-		bool b = btinsert(btreeRel, values, isnull, 
-				ht_ctid, heapRel, checkUnique);
+	b = btinsert(btreeRel, values, isnull, 
+			ht_ctid, heapRel, checkUnique);
 
-		printf("btinsert returns %d\n", b);
+	printf("btinsert returns %d\n", b);
 
-		index_close(btreeRel, RowExclusiveLock);
+	index_close(btreeRel, RowExclusiveLock);
+	sm_metadata->currTuples++;
+
+	if (sm_metadata->currTuples >= MAX_INMEM_TUPLES) {
+		printf("Exceeded! (:3)\n");
+		
 	}
+
+	_sm_write_metadata(rel, sm_metadata);
 
 	return false;
 }
@@ -218,7 +225,7 @@ smergegettuple(IndexScanDesc scan, ScanDirection dir)
 	printf("btgettuple returns %d\n", res);
 
 	scan->xs_ctup = bt_scan->xs_ctup;
-	
+
 	scan->xs_itup = bt_scan->xs_itup;
 	scan->xs_itupdesc = bt_scan->xs_itupdesc;
 		

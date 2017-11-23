@@ -23,6 +23,7 @@ _sm_init_metadata(Page metapage, Oid bt_index, IndexInfo *indexInfo) {
 		for (int j = 0; j < MAX_K; j++)
 			sm_metadata->tree[i][j] = InvalidOid;
 
+	sm_metadata->currTuples = 0;
 	sm_metadata->curr = bt_index;
 	sm_metadata->root = InvalidOid;
 	memcpy(sm_metadata, PageGetContents(metapage), sizeof(SmMetadata));
@@ -46,6 +47,19 @@ _sm_writepage(Relation index, Page page, BlockNumber blkno) {
 			  (char *) page, true);
 
 	pfree(page);
+}
+
+void
+_sm_write_metadata(Relation index, SmMetadata* sm_metadata) {
+	Page metapage;
+
+	metapage = (Page) palloc(BLCKSZ);
+	
+	PageInit(metapage, BLCKSZ, 0);
+
+	memcpy (PageGetContents(metapage), sm_metadata, sizeof(SmMetadata));
+
+	_sm_writepage(index, metapage, SMERGE_METAPAGE);
 }
 
 SmMetadata*
