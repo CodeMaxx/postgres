@@ -210,6 +210,7 @@ DATA(insert OID =  63 (  int2eq			   PGNSP PGUID 12 1 0 0 0 f f f t t f i s 2 0 
 DATA(insert OID =  64 (  int2lt			   PGNSP PGUID 12 1 0 0 0 f f f t t f i s 2 0 16 "21 21" _null_ _null_ _null_ _null_ _null_ int2lt _null_ _null_ _null_ ));
 DATA(insert OID =  65 (  int4eq			   PGNSP PGUID 12 1 0 0 0 f f f t t f i s 2 0 16 "23 23" _null_ _null_ _null_ _null_ _null_ int4eq _null_ _null_ _null_ ));
 DATA(insert OID =  66 (  int4lt			   PGNSP PGUID 12 1 0 0 0 f f f t t f i s 2 0 16 "23 23" _null_ _null_ _null_ _null_ _null_ int4lt _null_ _null_ _null_ ));
+DATA(insert OID =  52120 (  int4true			   PGNSP PGUID 12 1 0 0 0 f f f t t f i s 2 0 16 "23 23" _null_ _null_ _null_ _null_ _null_ int4true _null_ _null_ _null_ ));
 DATA(insert OID =  67 (  texteq			   PGNSP PGUID 12 1 0 0 0 f f f t t f i s 2 0 16 "25 25" _null_ _null_ _null_ _null_ _null_ texteq _null_ _null_ _null_ ));
 DATA(insert OID =  68 (  xideq			   PGNSP PGUID 12 1 0 0 0 f f f t t f i s 2 0 16 "28 28" _null_ _null_ _null_ _null_ _null_ xideq _null_ _null_ _null_ ));
 DATA(insert OID = 3308 (  xidneq		   PGNSP PGUID 12 1 0 0 0 f f f t t f i s 2 0 16 "28 28" _null_ _null_ _null_ _null_ _null_ xidneq _null_ _null_ _null_ ));

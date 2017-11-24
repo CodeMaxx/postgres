@@ -204,6 +204,7 @@ extern Datum bool_int4(PG_FUNCTION_ARGS);
 extern Datum int4eq(PG_FUNCTION_ARGS);
 extern Datum int4ne(PG_FUNCTION_ARGS);
 extern Datum int4lt(PG_FUNCTION_ARGS);
+extern Datum int4true(PG_FUNCTION_ARGS);
 extern Datum int4le(PG_FUNCTION_ARGS);
 extern Datum int4gt(PG_FUNCTION_ARGS);
 extern Datum int4ge(PG_FUNCTION_ARGS);

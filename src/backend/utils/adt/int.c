@@ -414,6 +414,12 @@ int4lt(PG_FUNCTION_ARGS)
 }
 
 Datum
+int4true(PG_FUNCTION_ARGS)
+{
+	PG_RETURN_BOOL(true);
+}
+
+Datum
 int4le(PG_FUNCTION_ARGS)
 {
 	int32		arg1 = PG_GETARG_INT32(0);

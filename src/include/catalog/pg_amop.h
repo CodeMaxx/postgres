@@ -123,6 +123,7 @@ DATA(insert (	1976   23 23 2 s	523 403 0 ));
 DATA(insert (	1976   23 23 3 s	96	403 0 ));
 DATA(insert (	1976   23 23 4 s	525 403 0 ));
 DATA(insert (	1976   23 23 5 s	521 403 0 ));
+DATA(insert (   1976   23 23 6 s    5212 403 0 ));
 /* crosstype operators int42 */
 DATA(insert (	1976   23 21 1 s	535 403 0 ));
 DATA(insert (	1976   23 21 2 s	541 403 0 ));
