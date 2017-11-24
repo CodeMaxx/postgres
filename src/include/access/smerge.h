@@ -91,6 +91,8 @@ typedef struct SmMetadata {
 
 	Oid curr;
 	Oid root;
+
+	bool unique;
 } SmMetadata;
 
 typedef struct SmScanOpaqueData
@@ -124,5 +126,5 @@ extern void _sm_write_metadata(Relation index, SmMetadata* sm_metadata);
 extern Relation _get_curr_btree (SmMetadata* metadata);
 
 // smsort functions
-extern void sm_flush(Relation rel, Relation heapRel, SmMetadata* metadata);
+extern void sm_flush(Relation heapRel, SmMetadata* metadata);
 #endif   /* SMERGE_H */
