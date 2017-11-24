@@ -99,7 +99,7 @@ smergebuild(Relation heap, Relation index, IndexInfo *indexInfo)
 	Page		metapage;
 
 	btreeIndStmt = create_btree_index_stmt(heap, indexInfo->ii_NumIndexAttrs, indexInfo->ii_KeyAttrNumbers, NULL);
-	addr = DefineIndex(RelationGetRelid(heap), 
+	addr = DefineIndex(RelationGetRelid(heap),
 						btreeIndStmt,
 						InvalidOid,
 						false,
@@ -119,10 +119,10 @@ smergebuild(Relation heap, Relation index, IndexInfo *indexInfo)
 
 	/* Construct metapage. */
 	metapage = (Page) palloc(BLCKSZ);
-	
+
 	_sm_init_metadata(metapage, bt_index, indexInfo);
 	_sm_writepage(index, metapage, SMERGE_METAPAGE);
-	
+
 
 	result = (IndexBuildResult *) palloc(sizeof(IndexBuildResult));
 
@@ -145,7 +145,7 @@ smergebuildempty(Relation index)
 	metapage = (Page) palloc(BLCKSZ);
 
 	PageInit(metapage, BLCKSZ, 0 /*for now, need to add a metadata size struct*/);
-	
+
 	PageSetChecksumInplace(metapage, SMERGE_METAPAGE);
 	smgrwrite(index->rd_smgr, INIT_FORKNUM, SMERGE_METAPAGE,
 			  (char *) metapage, true);
@@ -187,7 +187,7 @@ smergeinsert(Relation rel, Datum *values, bool *isnull,
 	// insert into sub btrees only if there any btrees
 	btreeRel = _get_curr_btree(sm_metadata);
 
-	b = btinsert(btreeRel, values, isnull, 
+	b = btinsert(btreeRel, values, isnull,
 			ht_ctid, heapRel, checkUnique);
 
 	printf("btinsert returns %d\n", b);
@@ -202,10 +202,10 @@ smergeinsert(Relation rel, Datum *values, bool *isnull,
 		sm_metadata->currTuples = 0;
 		if (addr.objectId != InvalidOid)
 			sm_metadata->curr = addr.objectId;
-		else 
+		else
 			printf("Error in creating a sub-btree\n");
 
-		// call merge func here
+		sm_flush(heapRel ,sm_metadata);
 	}
 
 	_sm_write_metadata(rel, sm_metadata);
@@ -240,7 +240,7 @@ smergegettuple(IndexScanDesc scan, ScanDirection dir)
 
 	scan->xs_itup = bt_scan->xs_itup;
 	scan->xs_itupdesc = bt_scan->xs_itupdesc;
-	
+
 	while (!res) {
 //		if (so->bt_isd != NULL) {
 //			btendscan(so->bt_isd);
@@ -281,7 +281,7 @@ smergegettuple(IndexScanDesc scan, ScanDirection dir)
 			bt_scan->xs_continue_hot = false;
 
 			bt_scan->kill_prior_tuple = false;		/* for safety */
-			
+
 
 			btrescan(so->bt_isd, scan->keyData, scan->numberOfKeys, scan->orderByData, scan->numberOfOrderBys);
 
@@ -293,7 +293,7 @@ smergegettuple(IndexScanDesc scan, ScanDirection dir)
 			scan->xs_ctup = bt_scan->xs_ctup;
 
 			scan->xs_itup = bt_scan->xs_itup;
-			scan->xs_itupdesc = bt_scan->xs_itupdesc;		
+			scan->xs_itupdesc = bt_scan->xs_itupdesc;
 		}
 		else {
 			res = false;
@@ -332,7 +332,7 @@ smergebeginscan(Relation rel, int nkeys, int norderbys)
 	SmScanOpaque so;
 
 	scan = RelationGetIndexScan(rel, nkeys, norderbys);
-	
+
 	// smerge metadata and stuff needed for successful scan
 	so = palloc(sizeof(SmScanOpaqueData));
 	so->metadata = _sm_getmetadata(rel);
@@ -356,7 +356,7 @@ void
 smergerescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 		 ScanKey orderbys, int norderbys)
 {
-	
+
 	IndexScanDesc bt_scan;
 	SmScanOpaque so = (SmScanOpaque) scan->opaque;
 
@@ -393,7 +393,7 @@ smergeendscan(IndexScanDesc scan)
 	SmScanOpaque so = (SmScanOpaque) scan->opaque;
 
 	/* Release metadata */
-	if (so->metadata != NULL) 
+	if (so->metadata != NULL)
 		pfree(so->metadata);
 
 	pfree(so);
