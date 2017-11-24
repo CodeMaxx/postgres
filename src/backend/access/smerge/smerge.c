@@ -221,7 +221,11 @@ smergegettuple(IndexScanDesc scan, ScanDirection dir)
 {
 	IndexScanDesc bt_scan;
 	bool res;
+	Oid bt_oid;
+	SmMetadata* metadata;
 	SmScanOpaque so = (SmScanOpaque) scan->opaque;
+
+	metadata = so->metadata;
 
 	bt_scan = so->bt_isd;
 
@@ -236,7 +240,62 @@ smergegettuple(IndexScanDesc scan, ScanDirection dir)
 
 	scan->xs_itup = bt_scan->xs_itup;
 	scan->xs_itupdesc = bt_scan->xs_itupdesc;
+	
+	while (!res) {
+		btendscan(so->bt_isd);
+		pfree(so->bt_isd);
 		
+		index_close(so->bt_rel, RowExclusiveLock);
+		pfree(so->bt_rel);
+
+		while ((so->currlevel = -1 || so->currpos >= metadata->levels[so->currlevel]) && so->currlevel < metadata->N) {
+			so->currpos = 0;
+			so->currlevel ++;
+		}
+
+		res = (so->currlevel == metadata->N);
+
+		if (res) {
+			bt_oid = metadata->tree[so->currlevel][so->currpos];
+			so->currpos ++;
+
+			so->bt_rel = index_open(bt_oid, RowExclusiveLock);
+			so->bt_isd = btbeginscan(so->bt_rel, scan->numberOfKeys, scan->numberOfOrderBys);
+
+			bt_scan = so->bt_isd;
+
+			bt_scan->heapRelation = scan->heapRelation;
+			bt_scan->xs_snapshot = scan->xs_snapshot;
+
+			/* Release any held pin on a heap page */
+			if (BufferIsValid(bt_scan->xs_cbuf))
+			{
+				ReleaseBuffer(bt_scan->xs_cbuf);
+				bt_scan->xs_cbuf = InvalidBuffer;
+			}
+
+			bt_scan->xs_continue_hot = false;
+
+			bt_scan->kill_prior_tuple = false;		/* for safety */
+			
+
+			btrescan(so->bt_isd, scan->keyData, scan->numberOfKeys, scan->orderByData, scan->numberOfOrderBys);
+
+			bt_scan->xs_cbuf = scan->xs_cbuf;
+
+			res = btgettuple(so->bt_isd, dir);
+			printf("btgettuple returns %d\n", res);
+
+			scan->xs_ctup = bt_scan->xs_ctup;
+
+			scan->xs_itup = bt_scan->xs_itup;
+			scan->xs_itupdesc = bt_scan->xs_itupdesc;		
+		}
+		else {
+			break;
+		}
+	} 
+
 	/* If we're out of index entries, we're done */
 	// if (!res)
 	// {
@@ -271,6 +330,8 @@ smergebeginscan(Relation rel, int nkeys, int norderbys)
 	// smerge metadata and stuff needed for successful scan
 	so = palloc(sizeof(SmScanOpaqueData));
 	so->metadata = _sm_getmetadata(rel);
+	so->currlevel = -1;
+	so->currpos = -1;
 
 	so->bt_rel = _get_curr_btree(so->metadata);
 	so->bt_isd = btbeginscan(so->bt_rel, nkeys, norderbys);
@@ -325,11 +386,6 @@ smergeendscan(IndexScanDesc scan)
 {
 	SmScanOpaque so = (SmScanOpaque) scan->opaque;
 
-	if (so->bt_isd != NULL)
-		pfree(so->bt_isd);
-	/* Close btree index */
-	if (so->bt_rel != NULL)
-		index_close (so->bt_rel, RowExclusiveLock);
 	/* Release metadata */
 	if (so->metadata != NULL) 
 		pfree(so->metadata);

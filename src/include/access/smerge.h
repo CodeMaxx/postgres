@@ -97,6 +97,9 @@ typedef struct SmScanOpaqueData
 {
 	SmMetadata* metadata;
 
+	int currlevel;
+	int currpos;
+
 	Relation bt_rel;
 	IndexScanDesc bt_isd;
 } SmScanOpaqueData;
