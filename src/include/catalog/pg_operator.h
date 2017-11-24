@@ -130,7 +130,7 @@ DESCR("equal");
 #define Int4EqualOperator	96
 DATA(insert OID =  97 ( "<"		   PGNSP PGUID b f f	23	23	16 521 525 int4lt scalarltsel scalarltjoinsel ));
 DESCR("less than");
-DATA(insert OID =  5212 ( "T"		   PGNSP PGUID b f f	23	23	16 InvalidOid InvalidOid int4true scalarltsel scalarltjoinsel ));
+DATA(insert OID =  5212 ( "T"		   PGNSP PGUID b f f	23	23	16 0 0 int4true scalarltsel scalarltjoinsel ));
 DESCR("btree all");
 #define Int4LessOperator	97
 DATA(insert OID =  98 ( "="		   PGNSP PGUID b t t	25	25	16	98 531 texteq eqsel eqjoinsel ));
