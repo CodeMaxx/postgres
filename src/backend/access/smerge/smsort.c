@@ -754,12 +754,12 @@ _sm_merge_rescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 
 void
 sm_flush(Relation heapRel, SmMetadata* metadata) {
-    for(int i = 0; i < MAX_N - 1; i++) {
-        if(metadata->levels[i] == MAX_K) {
+    for(int i = 0; i < metadata->N - 1; i++) {
+        if(metadata->levels[i] == metadata->K) {
 
-            BTSpool* btspools[MAX_K]; // TODO
+            BTSpool* btspools[metadata->K]; // TODO
 
-            for(int j = 0; j < MAX_K; j++) {
+            for(int j = 0; j < metadata->K; j++) {
                 Relation indexRel = index_open(metadata->tree[i][j], ExclusiveLock);
                 _bt_spoolinit(heapRel, indexRel, metadata->unique, false); // Assuming heapRel is not being used
 
@@ -806,11 +806,11 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
 
             _sm_merge_initialise_wstate(&wstate, heapRel, mergeBtreeOid);
 
-            _sm_merge_k(&wstate, btspools, MAX_K);
+            _sm_merge_k(&wstate, btspools, metadata->K);
 
             metadata->levels[i+1]++;
 
-            for(int j = 0; j < MAX_K; j++) {
+            for(int j = 0; j < metadata->K; j++) {
                 // Delete level i btrees
                 _sm_merge_delete_btree(metadata->tree[i][j]);
                 metadata->tree[i][j] = InvalidOid;
@@ -830,8 +830,8 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
         }
     }
 
-    if(metadata->levels[MAX_N - 1] == MAX_K) {
-        BTSpool* btspools[MAX_K + 1]; // TODO
+    if(metadata->levels[metadata->N - 1] == metadata->K) {
+        BTSpool* btspools[metadata->K + 1]; // TODO
         BTWriteState wstate;
         Oid mergeBtreeOid;
 
@@ -841,14 +841,14 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
             mergeBtreeOid = metadata->root;
 
         _sm_merge_initialise_wstate(&wstate, heapRel, mergeBtreeOid);
-        _sm_merge_k(&wstate, btspools, MAX_K + 1);
+        _sm_merge_k(&wstate, btspools, metadata->K + 1);
 
-        for(int j = 0; j < MAX_K; j++) {
+        for(int j = 0; j < metadata->K; j++) {
             // Delete level i btrees
-            _sm_merge_delete_btree(metadata->tree[MAX_N - 1][j]);
-            metadata->tree[MAX_N - 1][j] = InvalidOid;
+            _sm_merge_delete_btree(metadata->tree[metadata->N - 1][j]);
+            metadata->tree[metadata->N - 1][j] = InvalidOid;
         }
-        // Merge level MAX_N - 1 into root relation - MAX_K + 1 way merge
+        // Merge level metadata->N - 1 into root relation - metadata->K + 1 way merge
     }
 
     /*
