@@ -234,7 +234,7 @@ smergegettuple(IndexScanDesc scan, ScanDirection dir)
 	bt_scan->xs_cbuf = scan->xs_cbuf;
 
 	res = btgettuple(so->bt_isd, dir);
-	printf("btgettuple returns %d\n", res);
+	// printf("Outer btgettuple returns %d\n", res);
 
 	scan->xs_ctup = bt_scan->xs_ctup;
 
@@ -242,23 +242,27 @@ smergegettuple(IndexScanDesc scan, ScanDirection dir)
 	scan->xs_itupdesc = bt_scan->xs_itupdesc;
 	
 	while (!res) {
-		btendscan(so->bt_isd);
-		pfree(so->bt_isd);
-		
-		index_close(so->bt_rel, RowExclusiveLock);
-		pfree(so->bt_rel);
+//		if (so->bt_isd != NULL) {
+//			btendscan(so->bt_isd);
+//			pfree(so->bt_isd);
+//			so->bt_isd = NULL;
+//		}
 
-		while ((so->currlevel = -1 || so->currpos >= metadata->levels[so->currlevel]) && so->currlevel < metadata->N) {
+		// printf("CurrentLevel: %d\n", so->currlevel);
+		index_close(so->bt_rel, RowExclusiveLock);
+
+		while ((so->currlevel == -1 || so->currpos >= metadata->levels[so->currlevel]) && so->currlevel < metadata->N) {
 			so->currpos = 0;
 			so->currlevel ++;
 		}
 
 		res = (so->currlevel == metadata->N);
 
-		if (res) {
+		if (!res) {
 			bt_oid = metadata->tree[so->currlevel][so->currpos];
 			so->currpos ++;
 
+			// printf("Opening Btree: %d\n", bt_oid);
 			so->bt_rel = index_open(bt_oid, RowExclusiveLock);
 			so->bt_isd = btbeginscan(so->bt_rel, scan->numberOfKeys, scan->numberOfOrderBys);
 
@@ -284,7 +288,7 @@ smergegettuple(IndexScanDesc scan, ScanDirection dir)
 			bt_scan->xs_cbuf = scan->xs_cbuf;
 
 			res = btgettuple(so->bt_isd, dir);
-			printf("btgettuple returns %d\n", res);
+			// printf("btgettuple returns %d\n", res);
 
 			scan->xs_ctup = bt_scan->xs_ctup;
 
@@ -292,8 +296,10 @@ smergegettuple(IndexScanDesc scan, ScanDirection dir)
 			scan->xs_itupdesc = bt_scan->xs_itupdesc;		
 		}
 		else {
+			res = false;
 			break;
 		}
+		// printf("Debug: btgettuple returns %d\n", res);
 	} 
 
 	/* If we're out of index entries, we're done */
