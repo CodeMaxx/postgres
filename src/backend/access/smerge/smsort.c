@@ -1,11 +1,16 @@
 #include "postgres.h"
 #include "access/smerge.h"
 #include "access/nbtree.h"
+#include "access/genam.h"
+#include "access/relscan.h"
+#include "access/sdir.h"
 #include "catalog/dependency.h"
 #include "catalog/pg_class.h"
 #include "nodes/parsenodes.h"
 #include "commands/defrem.h"
 #include "miscadmin.h"
+#include "pg_config_manual.h"
+#include "executor/tuptable.h"
 
 /*
  * Status record for spooling/sorting phase.  (Note we may have two of
@@ -724,11 +729,64 @@ _sm_merge_delete_btree(Oid btreeOid) {
     performDeletion(&object, DROP_RESTRICT, PERFORM_DELETION_INTERNAL);
 }
 
-void sm_flush(Relation rel, Relation heapRel, SmMetadata* metadata) {
+static void
+_sm_merge_rescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
+         ScanKey orderbys, int norderbys) {
+    if (scankey && scan->numberOfKeys > 0)
+        memmove(scan->keyData,
+                scankey,
+                scan->numberOfKeys * sizeof(ScanKeyData));
+
+    /* Release any held pin on a heap page */
+    if (BufferIsValid(scan->xs_cbuf))
+    {
+        ReleaseBuffer(scan->xs_cbuf);
+        scan->xs_cbuf = InvalidBuffer;
+    }
+
+    scan->xs_continue_hot = false;
+
+    scan->kill_prior_tuple = false;      /* for safety */
+
+    btrescan(scan, scankey, nscankeys, orderbys, norderbys);
+}
+
+void
+sm_flush(Relation heapRel, SmMetadata* metadata) {
     for(int i = 0; i < MAX_N - 1; i++) {
         if(metadata->levels[i] == MAX_K) {
 
             BTSpool* btspools[MAX_K]; // TODO
+
+            for(int j = 0; j < MAX_K; j++) {
+                Relation indexRel = index_open(metadata->tree[i][j], ExclusiveLock);
+                _bt_spoolinit(heapRel, indexRel, metadata->unique, false); // Assuming heapRel is not being used
+
+                IndexScanDesc scan = btbeginscan(indexRel, metadata->attnum, 0);
+                // _sm_merge_rescan(scan, scankey, metadata->attnum, NULL, 0)
+
+                TupleTableSlot* slot;
+                slot = MakeSingleTupleTableSlot(RelationGetDescr(heapRel));
+
+                while(btgettuple(scan, ForwardScanDirection)) {
+                    bool isnull[INDEX_MAX_KEYS];
+                    Datum values[INDEX_MAX_KEYS];
+
+                    for(int k = 0; k < metadata->attnum; k++ ) {
+                        int keycol = metadata->attrs[k];
+                        Datum iDatum;
+                        bool isNull;
+                        iDatum = slot_getattr(slot, keycol, &isNull);
+                        values[k] = iDatum;
+                        isnull[k] = isNull;
+                    }
+                    _bt_spool(btspools[i], &(scan->xs_ctup.t_self), values, isnull);
+                }
+
+            }
+
+            // IndexScanDesc scan = btbeginscan(, metadata->attnum, )
+
             Oid mergeBtreeOid = _sm_merge_create_btree(heapRel, metadata);
             BTWriteState wstate;
 
