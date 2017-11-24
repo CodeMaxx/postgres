@@ -772,9 +772,13 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
     // Oid         sk_subtype;     /* strategy subtype */ -- no
     // Oid         sk_collation;   /* collation to use, if needed */ -- no
     // FmgrInfo    sk_func; -- not req
-                scankey.sk_flags = SK_SEARCHNOTNULL;
+                scankey.sk_flags = 0;
                 scankey.sk_attno = metadata->attrs[0];
-                scankey.sk_argument = (Datum) NULL;
+                scankey.sk_strategy = 5;
+                scankey.sk_subtype = 23;
+                scankey.sk_collation = 0;
+                // scankey.sk_func = ;
+                scankey.sk_argument = (Datum) 1;
                 _sm_merge_rescan(scan, &scankey, metadata->attnum, NULL, 0);
 
                 TupleTableSlot* slot;
