@@ -4,6 +4,7 @@
 #include "access/genam.h"
 #include "access/relscan.h"
 #include "access/sdir.h"
+#include "access/skey.h"
 #include "catalog/dependency.h"
 #include "catalog/pg_class.h"
 #include "nodes/parsenodes.h"
@@ -763,7 +764,18 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
                 _bt_spoolinit(heapRel, indexRel, metadata->unique, false); // Assuming heapRel is not being used
 
                 IndexScanDesc scan = btbeginscan(indexRel, metadata->attnum, 0);
-                // _sm_merge_rescan(scan, scankey, metadata->attnum, NULL, 0)
+
+                ScanKeyData scankey;
+    //             sk_flags;       /* flags, see below */
+    // AttrNumber  sk_attno;       /* table or index column number */
+    // StrategyNumber sk_strategy;  operator strategy number  -- no
+    // Oid         sk_subtype;     /* strategy subtype */ -- no
+    // Oid         sk_collation;   /* collation to use, if needed */ -- no
+    // FmgrInfo    sk_func; -- not req
+                scankey.sk_flags = SK_SEARCHNOTNULL;
+                scankey.sk_attno = metadata->attrs[0];
+                scankey.sk_argument = (Datum) NULL;
+                _sm_merge_rescan(scan, &scankey, metadata->attnum, NULL, 0);
 
                 TupleTableSlot* slot;
                 slot = MakeSingleTupleTableSlot(RelationGetDescr(heapRel));
