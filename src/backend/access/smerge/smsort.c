@@ -12,7 +12,10 @@
 #include "miscadmin.h"
 #include "pg_config_manual.h"
 #include "executor/tuptable.h"
-
+#include "utils/memutils.h"
+#include "utils/builtins.h"
+#include "utils/snapmgr.h"
+#include "nodes/nodes.h"
 /*
  * Status record for spooling/sorting phase.  (Note we may have two of
  * these due to the special requirements for uniqueness-checking with
@@ -754,6 +757,9 @@ _sm_merge_rescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 
 void
 sm_flush(Relation heapRel, SmMetadata* metadata) {
+    HeapTuple heaptuple;
+    Snapshot currSnap = GetActiveSnapshot();
+
     for(int i = 0; i < metadata->N - 1; i++) {
         if(metadata->levels[i] == metadata->K) {
 
@@ -764,6 +770,9 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
                 _bt_spoolinit(heapRel, indexRel, metadata->unique, false); // Assuming heapRel is not being used
 
                 IndexScanDesc scan = btbeginscan(indexRel, metadata->attnum, 0);
+                scan->heapRelation = heapRel;
+
+                scan->xs_snapshot = currSnap;
 
                 ScanKeyData scankey;
     //             sk_flags;       /* flags, see below */
@@ -774,19 +783,37 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
     // FmgrInfo    sk_func; -- not req
                 scankey.sk_flags = 0;
                 scankey.sk_attno = metadata->attrs[0];
-                scankey.sk_strategy = 6;
+                scankey.sk_strategy = 5;
                 scankey.sk_subtype = 23;
                 scankey.sk_collation = 0;
-                // scankey.sk_func = ;
-                scankey.sk_argument = (Datum) 1;
+
+                scankey.sk_func.fn_addr = &int4gt;
+                scankey.sk_func.fn_oid = 147;
+                scankey.sk_func.fn_nargs = 2;
+                scankey.sk_func.fn_strict = true;
+                scankey.sk_func.fn_retset = false;
+                scankey.sk_func.fn_stats = 2;
+                scankey.sk_func.fn_extra = NULL;
+                scankey.sk_func.fn_mcxt = CacheMemoryContext;
+                scankey.sk_func.fn_expr = NULL;
+                scankey.sk_argument = (Datum) -1000;
                 _sm_merge_rescan(scan, &scankey, metadata->attnum, NULL, 0);
 
                 TupleTableSlot* slot;
+                heaptuple = index_fetch_heap(scan);
+
                 slot = MakeSingleTupleTableSlot(RelationGetDescr(heapRel));
+
 
                 while(btgettuple(scan, ForwardScanDirection)) {
                     bool isnull[INDEX_MAX_KEYS];
                     Datum values[INDEX_MAX_KEYS];
+
+
+                    ExecStoreTuple(heaptuple,
+                    			   slot,
+                    			   InvalidBuffer,
+                    			   false);
 
                     for(int k = 0; k < metadata->attnum; k++ ) {
                         int keycol = metadata->attrs[k];
@@ -796,7 +823,7 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
                         values[k] = iDatum;
                         isnull[k] = isNull;
                     }
-                    _bt_spool(btspools[i], &(scan->xs_ctup.t_self), values, isnull);
+                    _bt_spool(btspools[i], &(heaptuple->t_self), values, isnull);
                 }
 
             }

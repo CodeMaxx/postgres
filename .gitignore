@@ -45,3 +45,4 @@ logfile
 /tmp_install/
 /install/
 /.settings/
+/.vscode/
