@@ -774,7 +774,7 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
     // FmgrInfo    sk_func; -- not req
                 scankey.sk_flags = 0;
                 scankey.sk_attno = metadata->attrs[0];
-                scankey.sk_strategy = 5;
+                scankey.sk_strategy = 6;
                 scankey.sk_subtype = 23;
                 scankey.sk_collation = 0;
                 // scankey.sk_func = ;
