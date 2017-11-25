@@ -165,10 +165,8 @@ _get_curr_btree (SmMetadata* metadata) {
 }
 
 /*
- *	smergeinsert() -- insert an index tuple into a btree.
+ *	smergeinsert() -- insert an index tuple into curr btree.
  *
- *		Descend the tree recursively, find the appropriate location for our
- *		new tuple, and put it there.
  */
 bool
 smergeinsert(Relation rel, Datum *values, bool *isnull,
@@ -300,24 +298,7 @@ smergegettuple(IndexScanDesc scan, ScanDirection dir)
 			break;
 		}
 		// printf("Debug: btgettuple returns %d\n", res);
-	} 
-
-	/* If we're out of index entries, we're done */
-	// if (!res)
-	// {
-	// 	/* ... but first, release any held pin on a heap page */
-	// 	if (BufferIsValid(bt_scan->xs_cbuf))
-	// 	{
-	// 		ReleaseBuffer(bt_scan->xs_cbuf);
-	// 		bt_scan->xs_cbuf = InvalidBuffer;
-	// 	}
-	// 	return false;
-	// }
-
-	// pgstat_count_index_tuples(bt_scan->indexRelation, 1);
-
-	/* Return the TID of the tuple we found. */
-	// return &bt_scan->xs_ctup.t_self;
+	}
 
 	return res;
 }
