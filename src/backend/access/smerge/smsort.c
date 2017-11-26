@@ -518,7 +518,7 @@ _bt_uppershutdown(BTWriteState *wstate, BTPageState *state)
  * btree leaves.
  */
 static void
-_sm_merge_k(BTWriteState *wstate, BTSpool **btspool, int k)
+_sm_merge_k(BTWriteState *wstate, BTSpool* btspools[], int k)
 {
     BTPageState *state = NULL;
     IndexTuple  itup[k];
@@ -532,13 +532,13 @@ _sm_merge_k(BTWriteState *wstate, BTSpool **btspool, int k)
     SortSupport sortKeys;
 
     /*
-     * Another BTSpool for dead tuples exists. Now we have to merge
+     * Another BTSpools for dead tuples exists. Now we have to merge
      * btspools.
      */
 
     /* the preparation of merge */
     for(int i = 0; i < k; i++) {
-        itup[i] = tuplesort_getindextuple(btspool[i]->sortstate,
+        itup[i] = tuplesort_getindextuple(btspools[i]->sortstate,
                                    true, &should_free[i]);
     }
 
@@ -577,7 +577,7 @@ _sm_merge_k(BTWriteState *wstate, BTSpool **btspool, int k)
 
     for (;;)
     {
-        loadk = 0;       /* load BTSpool next ? */
+        loadk = 0;       /* load BTSpools next ? */
         int count = 0;
         for(int i = 0; i < k; i++) {
             if(itup[i] == NULL) {
@@ -595,11 +595,12 @@ _sm_merge_k(BTWriteState *wstate, BTSpool **btspool, int k)
             if(!is_empty[j])
             {
                 itup_min = itup[j];
+                loadk = j;
                 break;
             }
         }
 
-        if(count != 1) {
+        if(count != k - 1) {
             j++;
             // Add for loop for finding min
             for(; j < k; j++) {
@@ -636,8 +637,6 @@ _sm_merge_k(BTWriteState *wstate, BTSpool **btspool, int k)
                 }
             }
         }
-        else
-            loadk = j;
 
         /* When we see first tuple, create first index page */
         if (state == NULL)
@@ -647,7 +646,7 @@ _sm_merge_k(BTWriteState *wstate, BTSpool **btspool, int k)
         _bt_buildadd(wstate, state, itup[loadk]);
         if (should_free[loadk])
             pfree(itup);
-        itup[loadk] = tuplesort_getindextuple(btspool[loadk]->sortstate,
+        itup[loadk] = tuplesort_getindextuple(btspools[loadk]->sortstate,
                                        true, &should_free[loadk]);
     }
     pfree(sortKeys);
@@ -761,11 +760,11 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
             Snapshot currentSnapshot;
             ScanKey scankey;
 
-            BTSpool* btspools[metadata->K]; // TODO
+            BTSpool* btspools[MAX_K]; // TODO
 
             for(int j = 0; j < metadata->K; j++) {
                 Relation indexRel = index_open(metadata->tree[i][j], ExclusiveLock);
-                btspools[i] = _bt_spoolinit(heapRel, indexRel, metadata->unique, false); // Assuming heapRel is not being used
+                btspools[j] = _bt_spoolinit(heapRel, indexRel, metadata->unique, false); // Assuming heapRel is not being used
 
                 currentSnapshot = GetActiveSnapshot();
                 IndexScanDesc scan = index_beginscan(heapRel, indexRel, currentSnapshot, metadata->attnum, 0);
@@ -822,9 +821,14 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
                         values[k] = iDatum;
                         isnull[k] = isNull;
                     }
-                    _bt_spool(btspools[i], &(scan->xs_itup->t_tid), values, isnull);
+                    _bt_spool(btspools[j], &(scan->xs_itup->t_tid), values, isnull);
                 }
 
+                index_endscan(scan);
+                index_close(indexRel, ExclusiveLock);
+
+
+                tuplesort_performsort(btspools[j]->sortstate);
             }
 
             // IndexScanDesc scan = btbeginscan(, metadata->attnum, )
