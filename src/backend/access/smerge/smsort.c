@@ -765,7 +765,7 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
 
             for(int j = 0; j < metadata->K; j++) {
                 Relation indexRel = index_open(metadata->tree[i][j], ExclusiveLock);
-                _bt_spoolinit(heapRel, indexRel, metadata->unique, false); // Assuming heapRel is not being used
+                btspools[i] = _bt_spoolinit(heapRel, indexRel, metadata->unique, false); // Assuming heapRel is not being used
 
                 currentSnapshot = GetActiveSnapshot();
                 IndexScanDesc scan = index_beginscan(heapRel, indexRel, currentSnapshot, metadata->attnum, 0);
