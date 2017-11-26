@@ -760,7 +760,7 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
             Snapshot currentSnapshot;
             ScanKey scankey;
 
-            BTSpool* btspools[MAX_K]; // TODO
+            BTSpool* btspools[MAX_K];
 
             for(int j = 0; j < metadata->K; j++) {
                 Relation indexRel = index_open(metadata->tree[i][j], ExclusiveLock);
@@ -857,7 +857,7 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
             metadata->levels[i] = 0;
 
 
-            // Create spools!!
+            // Create spools!! -> SPOOLS
             // Merge i to i + 1 -> DONE
             // Make new btree and initialise wstate -> Done
             // Increase levels[i+1] -> DONE
@@ -870,30 +870,130 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
     }
 
     if(metadata->levels[metadata->N - 1] == metadata->K) {
-        BTSpool* btspools[metadata->K + 1]; // TODO
+        Snapshot currentSnapshot;
+        ScanKey scankey;
+        BTSpool* btspools[MAX_K + 1];
         BTWriteState wstate;
-        Oid mergeBtreeOid;
 
-        if(metadata->root == InvalidOid)
-            mergeBtreeOid = _sm_merge_create_btree(heapRel, metadata);
-        else
-            mergeBtreeOid = metadata->root;
+        for(int j = 0; j < metadata->K + 1; j++) {
+                Relation indexRel;
+                if(j != metadata->K)
+                    indexRel = index_open(metadata->tree[metadata->N - 1][j], ExclusiveLock);
+                else if(metadata->root != InvalidOid)
+                    indexRel = index_open(metadata->root, ExclusiveLock);
+                else
+                    continue;
 
-        _sm_merge_initialise_wstate(&wstate, heapRel, mergeBtreeOid);
-        _sm_merge_k(&wstate, btspools, metadata->K + 1);
+                btspools[j] = _bt_spoolinit(heapRel, indexRel, metadata->unique, false); // Assuming heapRel is not being used
 
-        for (int j = 0; j < metadata->K; j++) {
-            _bt_spooldestroy(btspools[j]);
-        }
+                currentSnapshot = GetActiveSnapshot();
+                IndexScanDesc scan = index_beginscan(heapRel, indexRel, currentSnapshot, metadata->attnum, 0);
 
-        for(int j = 0; j < metadata->K; j++) {
-            // Delete level i btrees
-            // _sm_merge_delete_btree(metadata->tree[metadata->N - 1][j]);
-            metadata->tree[metadata->N - 1][j] = InvalidOid;
-        }
+    //             sk_flags;       /* flags, see below */
+    // AttrNumber  sk_attno;       /* table or index column number */
+    // StrategyNumber sk_strategy;  operator strategy number  -- no
+    // Oid         sk_subtype;     /* strategy subtype */ -- no
+    // Oid         sk_collation;   /* collation to use, if needed */ -- no
+    // FmgrInfo    sk_func; -- not req
+                
+                scankey = palloc(sizeof(ScanKeyData));
+                scankey->sk_flags = 0;
+                scankey->sk_attno = metadata->attrs[0];
+                scankey->sk_strategy = 5;
+                scankey->sk_subtype = 23;
+                scankey->sk_collation = 0;
+                scankey->sk_argument = (Datum) -1000;
+
+                scankey->sk_func.fn_addr = int4true;
+                scankey->sk_func.fn_oid = 52120;
+                scankey->sk_func.fn_nargs = 2;
+                scankey->sk_func.fn_strict = true;
+                scankey->sk_func.fn_retset = false;
+                scankey->sk_func.fn_stats = 2;
+                scankey->sk_func.fn_extra = NULL;
+                scankey->sk_func.fn_mcxt = CurrentMemoryContext;
+                scankey->sk_func.fn_expr = NULL;
+
+                // want itups
+                scan->xs_want_itup = true;
+
+                index_rescan(scan, scankey, metadata->attnum, NULL, 0);
+
+                // TupleTableSlot* slot;
+                // slot = MakeSingleTupleTableSlot(RelationGetDescr(heapRel));
+
+                ItemPointer tid;
+                while((tid = index_getnext_tid(scan, ForwardScanDirection)) != NULL) {
+                    bool isnull[INDEX_MAX_KEYS];
+                    Datum values[INDEX_MAX_KEYS];
+
+                    for(int k = 0; k < metadata->attnum; k++ ) {
+                        int keycol = metadata->attrs[k];
+                        Datum iDatum;
+                        bool isNull;
+
+                        iDatum = index_getattr(scan->xs_itup,
+                                      keycol,
+                                      scan->xs_itupdesc,
+                                      &isNull);
+
+                        // iDatum = slot_getattr(slot, keycol, &isNull);
+                        values[k] = iDatum;
+                        isnull[k] = isNull;
+                    }
+                    _bt_spool(btspools[j], &(scan->xs_itup->t_tid), values, isnull);
+                }
+
+                index_endscan(scan);
+                index_close(indexRel, ExclusiveLock);
+
+
+                tuplesort_performsort(btspools[j]->sortstate);
+            }
+
+            // IndexScanDesc scan = btbeginscan(, metadata->attnum, )
+
+            Oid mergeBtreeOid = _sm_merge_create_btree(heapRel, metadata);
+
+            /* Initialize wstate */
+
+            _sm_merge_initialise_wstate(&wstate, heapRel, mergeBtreeOid);
+
+            if(metadata->root != InvalidOid)
+                _sm_merge_k(&wstate, btspools, metadata->K + 1);
+            else
+                _sm_merge_k(&wstate, btspools, metadata->K);
+
+            metadata->root = mergeBtreeOid;
+
+            for (int j = 0; j < metadata->K; j++) {
+                _bt_spooldestroy(btspools[j]);
+            }
+
+            if(metadata->root != InvalidOid)
+                _bt_spooldestroy(btspools[metadata->K]);
+
+            for(int j = 0; j < metadata->K; j++) {
+                // Delete level i btrees
+                // _sm_merge_delete_btree(metadata->tree[i][j]);
+                metadata->tree[metadata->N - 1][j] = InvalidOid;
+            }
+
+            metadata->levels[metadata->N - 1] = 0;
+
+
+            // Create spools!! -> SPOOLS
+            // Merge i to i + 1 -> DONE
+            // Make new btree and initialise wstate -> Done
+            // Increase levels[i+1] -> DONE
+            // Delete level i btrees -> DONE
+            // Reset level i Oids -> DONE
+            // Decrease levels[i] to 0 -> DONE
         // Merge level metadata->N - 1 into root relation - metadata->K + 1 way merge
     }
 
+
+// TODO - write metadata
     /*
     1. If a level fills up loop till n
     2. Create new btree when merging
