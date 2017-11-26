@@ -203,7 +203,7 @@ smergeinsert(Relation rel, Datum *values, bool *isnull,
 		else
 			printf("Error in creating a sub-btree\n");
 
-		sm_flush(heapRel ,sm_metadata);
+		sm_flush(heapRel, sm_metadata);
 	}
 
 	_sm_write_metadata(rel, sm_metadata);
@@ -247,7 +247,11 @@ smergegettuple(IndexScanDesc scan, ScanDirection dir)
 //		}
 
 		// printf("CurrentLevel: %d\n", so->currlevel);
-		index_close(so->bt_rel, RowExclusiveLock);
+		if (so->bt_rel != NULL)	{
+			index_close(so->bt_rel, AccessShareLock);
+			pfree(so->bt_rel);
+			so->bt_rel = NULL;
+		}
 
 		while ((so->currlevel == -1 || so->currpos >= metadata->levels[so->currlevel]) && so->currlevel < metadata->N) {
 			so->currpos = 0;
@@ -261,7 +265,7 @@ smergegettuple(IndexScanDesc scan, ScanDirection dir)
 			so->currpos ++;
 
 			// printf("Opening Btree: %d\n", bt_oid);
-			so->bt_rel = index_open(bt_oid, RowExclusiveLock);
+			so->bt_rel = index_open(bt_oid, AccessShareLock);
 			so->bt_isd = btbeginscan(so->bt_rel, scan->numberOfKeys, scan->numberOfOrderBys);
 
 			bt_scan = so->bt_isd;
@@ -318,11 +322,10 @@ smergebeginscan(Relation rel, int nkeys, int norderbys)
 	so = palloc(sizeof(SmScanOpaqueData));
 	so->metadata = _sm_getmetadata(rel);
 	so->currlevel = -1;
-	so->currpos = -1;
+	so->currpos = 0;
 
-	so->bt_rel = _get_curr_btree(so->metadata);
-	so->bt_isd = btbeginscan(so->bt_rel, nkeys, norderbys);
-
+	so->bt_rel = index_open(so->metadata->curr, AccessShareLock);
+	
 	scan->xs_itupdesc = RelationGetDescr(rel);
 
 	scan->opaque = so;
@@ -341,28 +344,28 @@ smergerescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
 	IndexScanDesc bt_scan;
 	SmScanOpaque so = (SmScanOpaque) scan->opaque;
 
-	bt_scan = so->bt_isd;
+	so->bt_isd = index_beginscan(scan->heapRelation, so->bt_rel, scan->xs_snapshot, nscankeys, norderbys);
 
-	bt_scan->heapRelation = scan->heapRelation;
-	bt_scan->xs_snapshot = scan->xs_snapshot;
+	// bt_scan->heapRelation = scan->heapRelation;
+	// bt_scan->xs_snapshot = scan->xs_snapshot;
 
 	if (scankey && scan->numberOfKeys > 0)
 		memmove(scan->keyData,
 				scankey,
 				scan->numberOfKeys * sizeof(ScanKeyData));
 
-	/* Release any held pin on a heap page */
-	if (BufferIsValid(bt_scan->xs_cbuf))
-	{
-		ReleaseBuffer(bt_scan->xs_cbuf);
-		bt_scan->xs_cbuf = InvalidBuffer;
-	}
+	// /* Release any held pin on a heap page */
+	// if (BufferIsValid(bt_scan->xs_cbuf))
+	// {
+	// 	ReleaseBuffer(bt_scan->xs_cbuf);
+	// 	bt_scan->xs_cbuf = InvalidBuffer;
+	// }
 
-	bt_scan->xs_continue_hot = false;
+	// bt_scan->xs_continue_hot = false;
 
-	bt_scan->kill_prior_tuple = false;		/* for safety */
+	// bt_scan->kill_prior_tuple = false;		/* for safety */
 
-	btrescan(so->bt_isd, scankey, nscankeys, orderbys, norderbys);
+	index_rescan(so->bt_isd, scankey, nscankeys, orderbys, norderbys);
 }
 
 /*
@@ -373,6 +376,11 @@ smergeendscan(IndexScanDesc scan)
 {
 	SmScanOpaque so = (SmScanOpaque) scan->opaque;
 
+	if (so->bt_rel != NULL)	{
+		index_close(so->bt_rel, RowExclusiveLock);
+		pfree(so->bt_rel);
+		so->bt_rel = NULL;
+	}
 	/* Release metadata */
 	if (so->metadata != NULL)
 		pfree(so->metadata);

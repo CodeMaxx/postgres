@@ -728,7 +728,7 @@ _sm_merge_delete_btree(Oid btreeOid) {
     object.objectId = btreeOid;
     object.objectSubId = 0;
 
-    performDeletion(&object, DROP_RESTRICT, PERFORM_DELETION_INTERNAL);
+    performDeletion(&object, DROP_CASCADE, PERFORM_DELETION_INTERNAL);
 }
 
 static void
@@ -842,15 +842,20 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
 
             _sm_merge_k(&wstate, btspools, metadata->K);
 
-            metadata->levels[i+1]++;
+            metadata->tree[i + 1][metadata->levels[i + 1]++] = mergeBtreeOid;
+
+            for (int j = 0; j < metadata->K; j++) {
+                _bt_spooldestroy(btspools[j]);
+            }
 
             for(int j = 0; j < metadata->K; j++) {
                 // Delete level i btrees
-                _sm_merge_delete_btree(metadata->tree[i][j]);
+                // _sm_merge_delete_btree(metadata->tree[i][j]);
                 metadata->tree[i][j] = InvalidOid;
             }
 
             metadata->levels[i] = 0;
+
 
             // Create spools!!
             // Merge i to i + 1 -> DONE
@@ -877,9 +882,13 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
         _sm_merge_initialise_wstate(&wstate, heapRel, mergeBtreeOid);
         _sm_merge_k(&wstate, btspools, metadata->K + 1);
 
+        for (int j = 0; j < metadata->K; j++) {
+            _bt_spooldestroy(btspools[j]);
+        }
+
         for(int j = 0; j < metadata->K; j++) {
             // Delete level i btrees
-            _sm_merge_delete_btree(metadata->tree[metadata->N - 1][j]);
+            // _sm_merge_delete_btree(metadata->tree[metadata->N - 1][j]);
             metadata->tree[metadata->N - 1][j] = InvalidOid;
         }
         // Merge level metadata->N - 1 into root relation - metadata->K + 1 way merge
