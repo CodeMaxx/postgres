@@ -12,6 +12,8 @@
 #include "miscadmin.h"
 #include "pg_config_manual.h"
 #include "executor/tuptable.h"
+#include "utils/int8.h"
+#include "utils/builtins.h"
 
 /*
  * Status record for spooling/sorting phase.  (Note we may have two of
@@ -756,6 +758,8 @@ void
 sm_flush(Relation heapRel, SmMetadata* metadata) {
     for(int i = 0; i < metadata->N - 1; i++) {
         if(metadata->levels[i] == metadata->K) {
+            Snapshot currentSnapshot;
+            ScanKey scankey;
 
             BTSpool* btspools[metadata->K]; // TODO
 
@@ -763,28 +767,44 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
                 Relation indexRel = index_open(metadata->tree[i][j], ExclusiveLock);
                 _bt_spoolinit(heapRel, indexRel, metadata->unique, false); // Assuming heapRel is not being used
 
-                IndexScanDesc scan = btbeginscan(indexRel, metadata->attnum, 0);
+                currentSnapshot = GetActiveSnapshot();
+                IndexScanDesc scan = index_beginscan(heapRel, indexRel, currentSnapshot, metadata->attnum, 0);
 
-                ScanKeyData scankey;
     //             sk_flags;       /* flags, see below */
     // AttrNumber  sk_attno;       /* table or index column number */
     // StrategyNumber sk_strategy;  operator strategy number  -- no
     // Oid         sk_subtype;     /* strategy subtype */ -- no
     // Oid         sk_collation;   /* collation to use, if needed */ -- no
     // FmgrInfo    sk_func; -- not req
-                scankey.sk_flags = 0;
-                scankey.sk_attno = metadata->attrs[0];
-                scankey.sk_strategy = 6;
-                scankey.sk_subtype = 23;
-                scankey.sk_collation = 0;
-                // scankey.sk_func = ;
-                scankey.sk_argument = (Datum) 1;
-                _sm_merge_rescan(scan, &scankey, metadata->attnum, NULL, 0);
+                
+                scankey = palloc(sizeof(ScanKeyData));
+                scankey->sk_flags = 0;
+                scankey->sk_attno = metadata->attrs[0];
+                scankey->sk_strategy = 5;
+                scankey->sk_subtype = 23;
+                scankey->sk_collation = 0;
+                scankey->sk_argument = (Datum) -1000;
 
-                TupleTableSlot* slot;
-                slot = MakeSingleTupleTableSlot(RelationGetDescr(heapRel));
+                scankey->sk_func.fn_addr = int4true;
+                scankey->sk_func.fn_oid = 52120;
+                scankey->sk_func.fn_nargs = 2;
+                scankey->sk_func.fn_strict = true;
+                scankey->sk_func.fn_retset = false;
+                scankey->sk_func.fn_stats = 2;
+                scankey->sk_func.fn_extra = NULL;
+                scankey->sk_func.fn_mcxt = CurrentMemoryContext;
+                scankey->sk_func.fn_expr = NULL;
 
-                while(btgettuple(scan, ForwardScanDirection)) {
+                // want itups
+                scan->xs_want_itup = true;
+
+                index_rescan(scan, scankey, metadata->attnum, NULL, 0);
+
+                // TupleTableSlot* slot;
+                // slot = MakeSingleTupleTableSlot(RelationGetDescr(heapRel));
+
+                ItemPointer tid;
+                while((tid = index_getnext_tid(scan, ForwardScanDirection)) != NULL) {
                     bool isnull[INDEX_MAX_KEYS];
                     Datum values[INDEX_MAX_KEYS];
 
@@ -792,11 +812,17 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
                         int keycol = metadata->attrs[k];
                         Datum iDatum;
                         bool isNull;
-                        iDatum = slot_getattr(slot, keycol, &isNull);
+
+                        iDatum = index_getattr(scan->xs_itup,
+                                      keycol,
+                                      scan->xs_itupdesc,
+                                      &isNull);
+
+                        // iDatum = slot_getattr(slot, keycol, &isNull);
                         values[k] = iDatum;
                         isnull[k] = isNull;
                     }
-                    _bt_spool(btspools[i], &(scan->xs_ctup.t_self), values, isnull);
+                    _bt_spool(btspools[i], &(scan->xs_itup->t_tid), values, isnull);
                 }
 
             }

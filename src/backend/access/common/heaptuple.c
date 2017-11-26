@@ -1077,6 +1077,7 @@ slot_getattr(TupleTableSlot *slot, int attnum, bool *isnull)
 	HeapTuple	tuple = slot->tts_tuple;
 	TupleDesc	tupleDesc = slot->tts_tupleDescriptor;
 	HeapTupleHeader tup;
+	ItemPointer tid;
 
 	/*
 	 * system attributes are handled by heap_getsysattr
