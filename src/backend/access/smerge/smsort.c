@@ -964,14 +964,14 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
             else
                 _sm_merge_k(&wstate, btspools, metadata->K);
 
-            metadata->root = mergeBtreeOid;
-
             for (int j = 0; j < metadata->K; j++) {
                 _bt_spooldestroy(btspools[j]);
             }
 
             if(metadata->root != InvalidOid)
                 _bt_spooldestroy(btspools[metadata->K]);
+
+            metadata->root = mergeBtreeOid;
 
             for(int j = 0; j < metadata->K; j++) {
                 // Delete level i btrees
