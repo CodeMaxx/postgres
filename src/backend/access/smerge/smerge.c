@@ -249,58 +249,66 @@ smergegettuple(IndexScanDesc scan, ScanDirection dir)
 		// printf("CurrentLevel: %d\n", so->currlevel);
 		if (so->bt_rel != NULL)	{
 			index_close(so->bt_rel, AccessShareLock);
-			pfree(so->bt_rel);
+//			pfree(so->bt_rel);
 			so->bt_rel = NULL;
 		}
 
-		while ((so->currlevel == -1 || so->currpos >= metadata->levels[so->currlevel]) && so->currlevel < metadata->N) {
+		while (so->currlevel < metadata->N && (so->currlevel == -1 || so->currpos >= metadata->levels[so->currlevel])) {
 			so->currpos = 0;
 			so->currlevel ++;
 		}
 
-		res = (so->currlevel == metadata->N);
-
-		if (!res) {
+		if ((so->currlevel < metadata->N)) {
 			bt_oid = metadata->tree[so->currlevel][so->currpos];
 			so->currpos ++;
-
-			// printf("Opening Btree: %d\n", bt_oid);
-			so->bt_rel = index_open(bt_oid, AccessShareLock);
-			so->bt_isd = btbeginscan(so->bt_rel, scan->numberOfKeys, scan->numberOfOrderBys);
-
-			bt_scan = so->bt_isd;
-
-			bt_scan->heapRelation = scan->heapRelation;
-			bt_scan->xs_snapshot = scan->xs_snapshot;
-
-			/* Release any held pin on a heap page */
-			if (BufferIsValid(bt_scan->xs_cbuf))
-			{
-				ReleaseBuffer(bt_scan->xs_cbuf);
-				bt_scan->xs_cbuf = InvalidBuffer;
+		}
+		else if (so->currlevel == metadata->N){
+			if (metadata->root != InvalidOid) {
+				bt_oid = metadata->root;
+				so->currlevel ++;
 			}
-
-			bt_scan->xs_continue_hot = false;
-
-			bt_scan->kill_prior_tuple = false;		/* for safety */
-
-
-			btrescan(so->bt_isd, scan->keyData, scan->numberOfKeys, scan->orderByData, scan->numberOfOrderBys);
-
-			bt_scan->xs_cbuf = scan->xs_cbuf;
-
-			res = btgettuple(so->bt_isd, dir);
-			// printf("btgettuple returns %d\n", res);
-
-			scan->xs_ctup = bt_scan->xs_ctup;
-
-			scan->xs_itup = bt_scan->xs_itup;
-			scan->xs_itupdesc = bt_scan->xs_itupdesc;
+			else {
+				res = false;
+				break;
+			}
 		}
 		else {
 			res = false;
 			break;
 		}
+
+		// printf("Opening Btree: %d\n", bt_oid);
+		so->bt_rel = index_open(bt_oid, AccessShareLock);
+		so->bt_isd = btbeginscan(so->bt_rel, scan->numberOfKeys, scan->numberOfOrderBys);
+
+		bt_scan = so->bt_isd;
+
+		bt_scan->heapRelation = scan->heapRelation;
+		bt_scan->xs_snapshot = scan->xs_snapshot;
+
+		/* Release any held pin on a heap page */
+		if (BufferIsValid(bt_scan->xs_cbuf))
+		{
+			ReleaseBuffer(bt_scan->xs_cbuf);
+			bt_scan->xs_cbuf = InvalidBuffer;
+		}
+
+		bt_scan->xs_continue_hot = false;
+
+		bt_scan->kill_prior_tuple = false;		/* for safety */
+
+
+		btrescan(so->bt_isd, scan->keyData, scan->numberOfKeys, scan->orderByData, scan->numberOfOrderBys);
+
+		bt_scan->xs_cbuf = scan->xs_cbuf;
+
+		res = btgettuple(so->bt_isd, dir);
+		// printf("btgettuple returns %d\n", res);
+
+		scan->xs_ctup = bt_scan->xs_ctup;
+
+		scan->xs_itup = bt_scan->xs_itup;
+		scan->xs_itupdesc = bt_scan->xs_itupdesc;
 		// printf("Debug: btgettuple returns %d\n", res);
 	}
 
