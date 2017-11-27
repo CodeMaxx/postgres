@@ -824,8 +824,19 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
                     _bt_spool(btspools[j], &(scan->xs_itup->t_tid), values, isnull);
                 }
 
+                SmScanOpaque so = (SmScanOpaque) scan->opaque;
+
                 index_endscan(scan);
-                index_close(indexRel, ExclusiveLock);
+                if (so->bt_rel != NULL) {
+                    index_close(so->bt_rel, ExclusiveLock);
+                    pfree(so->bt_rel);
+                    so->bt_rel = NULL;
+                }
+                /* Release metadata */
+                if (so->metadata != NULL)
+                    pfree(so->metadata);
+
+                pfree(so);
 
 
                 tuplesort_performsort(btspools[j]->sortstate);
@@ -944,9 +955,19 @@ sm_flush(Relation heapRel, SmMetadata* metadata) {
                     _bt_spool(btspools[j], &(scan->xs_itup->t_tid), values, isnull);
                 }
 
-                index_endscan(scan);
-                index_close(indexRel, ExclusiveLock);
+                SmScanOpaque so = (SmScanOpaque) scan->opaque;
 
+                index_endscan(scan);
+                if (so->bt_rel != NULL) {
+                    index_close(so->bt_rel, ExclusiveLock);
+                    pfree(so->bt_rel);
+                    so->bt_rel = NULL;
+                }
+                /* Release metadata */
+                if (so->metadata != NULL)
+                    pfree(so->metadata);
+
+                pfree(so);
 
                 tuplesort_performsort(btspools[j]->sortstate);
             }
