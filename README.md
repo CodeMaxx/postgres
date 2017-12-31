@@ -1,11 +1,15 @@
 # Incremental Organization for Data Recording and Warehousing
 
-### Team DataAcids
+## Team DataAcids
 
-Harshith Goka 150050069
+[Harshith Goka](http://harshithgoka.me/) 150050069
+
 Abhishek Kumar 150050020
-Akash Trehan 150050031
+
+[Akash Trehan](http://www.akashtrehan.com) 150050031
+
 Tarun Verma 150050021
 
+- Project Backstory -> <http://www.akashtrehan.com/project-ditch/>
 
-Project Link: https://github.com/CodeMaxx/postgres
+- Project Report -> <http://www.akashtrehan.com/indexing-schemes/>
